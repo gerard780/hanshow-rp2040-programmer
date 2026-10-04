@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780" role="img" aria-labelledby="title description">
+  <title id="title">Hanshow RP2040-Zero programmer wiring</title>
+  <desc id="description">Ground to tag ground, 3V3 to tag VCC with battery disconnected, GP0 through 1 kiloohm to SWS, GP1 directly to the same SWS node, GP2 to reset. Optional UART: GP4 to tag RX and GP5 to tag TX.</desc>
+  <defs>
+    <style>
+      text {font-family:Arial,Helvetica,sans-serif; fill:#172033}
+      .heading {font-size:28px; font-weight:700}
+      .sub {font-size:17px; fill:#556176}
+      .pin {font-size:22px; font-family:monospace; font-weight:600}
+      .label {font-size:17px}
+      .wire {fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round}
+      .sws {stroke:#146ac8}
+      .optional {stroke:#15805b;stroke-dasharray:10 7}
+    </style>
+  </defs>
+  <rect width="1200" height="900" fill="#fff"/>
+  <text class="heading" x="50" y="50">Hanshow RP2040-Zero programmer</text>
+  <text class="sub" x="50" y="80">Signal wiring • use the Zero's GPIO labels • identify pads on the actual tag PCB</text>
+  <rect x="50" y="120" width="270" height="530" rx="15" fill="#f0f5ff" stroke="#bfd0e8" stroke-width="2"/>
+  <text class="heading" x="75" y="160">RP2040-Zero</text>
+  <text class="sub" x="75" y="185">USB from host computer</text>
+  <rect x="870" y="120" width="280" height="530" rx="15" fill="#f3f7f4" stroke="#bfd2c5" stroke-width="2"/>
+  <text class="heading" x="895" y="160">Hanshow tag</text>
+  <text class="sub" x="895" y="185">Pad positions vary by PCB</text>
+  <g class="pin">
+    <text x="80" y="237">GND</text><text x="900" y="237">GND</text>
+    <text x="80" y="287">3V3</text><text x="900" y="287">VCC</text>
+    <text x="80" y="357">GP0 · drive</text><text x="900" y="357">SWS</text>
+    <text x="80" y="427">GP1 · sense</text>
+    <text x="80" y="497">GP2</text><text x="900" y="497">RST</text>
+    <text x="80" y="567">GP4 · TX</text><text x="900" y="567">RX</text>
+    <text x="80" y="617">GP5 · RX</text><text x="900" y="617">TX</text>
+  </g>
+  <path class="wire" stroke="#394454" d="M320 230H870"/>
+  <path class="wire" stroke="#c23c36" d="M320 280H870"/>
+  <text class="label" x="450" y="260" fill="#a42722">3.3 V only; disconnect tag battery</text>
+  <path class="wire sws" d="M320 350H445 M555 350H870 M320 420H715V350"/>
+  <rect x="445" y="337" width="110" height="26" rx="2" fill="#fff" stroke="#146ac8" stroke-width="3"/>
+  <text class="pin" x="465" y="322">1 kΩ</text>
+  <circle cx="715" cy="350" r="7" fill="#146ac8"/>
+  <text class="label" x="385" y="454">GP1 joins SWS AFTER the resistor</text>
+  <path class="wire" stroke="#8750b8" d="M320 490H870"/>
+  <text class="label" x="435" y="519">Reset: pull low or release; never drive high</text>
+  <path class="wire optional" d="M320 560H870 M320 610H870"/>
+  <text class="label" x="450" y="593">Optional 3.3 V UART · crossed TX/RX</text>
+  <text x="50" y="720" font-size="18" font-weight="700" fill="#a42722">Unplug USB before changing wires. Do not connect 5 V / VBUS to tag power or signal pads.</text>
+  <text class="sub" x="50" y="755">Public v1.3 pin map: GP0/1 SWS, GP2 reset, GP4/5 UART • Gerard780</text>
+</svg>

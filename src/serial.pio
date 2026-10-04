@@ -1,0 +1,67 @@
+; UART timing follows Raspberry Pi pico-examples (BSD-3-Clause).
+; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+; SPDX-License-Identifier: BSD-3-Clause
+; These UART waveforms carry the pvvx reader's encoded SWS bytes.
+.program bridge_tx
+.side_set 1 opt
+    pull block side 1 [7]
+    set x, 7 side 0 [7]
+tx_bits:
+    out pins, 1
+    jmp x-- tx_bits [6]
+
+.program bridge_rx
+; SWS replies are pulse-width encoded rather than conventional UART frames.
+; Like the CH340 reader path, retain sampled bytes even if their stop bit would
+; fail a strict UART framing check. The host decodes the relevant sample bits.
+    wait 0 pin 0
+    set x, 7 [10]
+rx_bits:
+    in pins, 1
+    jmp x-- rx_bits [6]
+    push block
+
+; Pulse-width receiver adapted from davidgiven/telinkdebugger (MIT).
+; Copyright (c) 2024 David Given <dg@cowlark.com>
+; Skip the host's request pulse, then compare each data pulse's low/high times.
+; This avoids interpreting the tag's reply as UART characters.
+.program swire_reply
+    wait 0 pin 0
+    wait 1 pin 0
+    set y, 7
+reply_bit:
+    wait 0 pin 0
+    mov x, !null
+reply_low:
+    jmp pin reply_high_start
+    jmp x-- reply_low [1]
+reply_high_start:
+    mov x, !x
+reply_high:
+    jmp pin reply_still_high
+    jmp reply_one
+reply_still_high:
+    jmp x-- reply_high
+reply_zero:
+    in null, 1
+    jmp reply_next
+reply_one:
+    set x, 1
+    in x, 1
+reply_next:
+    jmp y-- reply_bit
+    push block
+reply_done:
+    jmp reply_done
+
+; A two-microsecond request pulse, independent of the host's UART baud rate.
+.program swire_request
+    set pins, 0 [31]
+    nop [31]
+    set pins, 1
+    nop ; TX supplies a pull-up through the series resistor during replies.
+request_done:
+    jmp request_done
+
+.program bus_trace
+    in pins, 1

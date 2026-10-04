@@ -1,0 +1,30 @@
+{
+  "programmer_version": "1.3",
+  "source_files": {
+    "src/main.c": "ac5d516aef6adfc60bf6324d8167049afe6ff3477fc2155ba752e1fcdd05d3c1",
+    "src/serial.pio": "81b42516f0093b6969cf1becf4a9a27a9bf8b2c194a026373ceeee7ee045161f",
+    "src/tusb_config.h": "62f718f0d409453709ba15cbeb5544b80361b9d826a6f280eb87f6ac41d5040d",
+    "src/usb_descriptors.c": "a9c896a5f683c3f74f691339c08e8224c3a52ee47813c07e8129eb411a1e6a2a"
+  },
+  "upstream_readers": [
+    {
+      "family": "825x",
+      "repository": "https://github.com/pvvx/TlsrComSwireWriter",
+      "commit": "44784ba12479344bf127c5d7034bd7c5ece2524a",
+      "file": "vendor/TLSR825xComFlasher.py",
+      "sha256": "2ea1b7c5266821e5d384a263daa7916bb4020fcdfb8f1ec0bed5842dcb94ca18",
+      "license": "Unlicense"
+    },
+    {
+      "family": "826x",
+      "repository": "https://github.com/pvvx/TlsrComSwireWriter",
+      "commit": "6455f50f25dd264ac6820ecacfd64b90c6c80f3e",
+      "file": "vendor/TLSR826xComFlasher.py",
+      "sha256": "662ab933d8d97424c140b47a748e859d4453d14edc468c41874fb020ba93bdb0",
+      "license": "Unlicense"
+    }
+  ],
+  "uf2_sha256": "b3254f4d36f16ceef8ced3f883550fe4936a013d11dad5d8f637938b6629314e",
+  "origin": "Based on the bench programmer transport; public v1.3 adds address-width selection and includes only SWS, reset and UART.",
+  "scope": "No tag firmware dumps are included."
+}

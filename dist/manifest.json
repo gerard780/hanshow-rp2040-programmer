@@ -1,0 +1,28 @@
+{
+  "firmware": "Hanshow PIO Readback + UART",
+  "version": "1.3",
+  "status": "Experimental public build; legacy three-byte transport has prior bench evidence; two-byte framing needs hardware validation",
+  "board": "waveshare_rp2040_zero",
+  "reset_enabled": true,
+  "pins": {
+    "sws_tx_via_1k": 0,
+    "sws_rx_direct": 1,
+    "tag_reset": 2,
+    "uart_tx_to_tag_rx": 4,
+    "uart_rx_from_tag_tx": 5
+  },
+  "sws_address_bytes": [
+    2,
+    3
+  ],
+  "default_sws_address_bytes": 3,
+  "uf2_sha256": "b3254f4d36f16ceef8ced3f883550fe4936a013d11dad5d8f637938b6629314e",
+  "pico_sdk": "2.2.0",
+  "pico_sdk_commit": "a1438dff1d38bd9c65dbd693f0e5db4b9ae91779",
+  "tinyusb_commit": "86ad6e56c1700e85f1c5678607a762cfe3aa2f47",
+  "gcc_arm_none_eabi": "13.2.1",
+  "build_type": "Release",
+  "source_date_epoch": 1791072000,
+  "block_capacity": 4096,
+  "max_spi_flash_read_bytes": 16777216
+}
