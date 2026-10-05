@@ -11,6 +11,7 @@ notices and licenses:
 | Raspberry Pi Pico SDK 2.2.0 | Firmware build dependency, incorporated in UF2 | [BSD-3-Clause](licenses/pico-sdk-BSD-3-Clause.txt) |
 | TinyUSB | Firmware USB dependency, incorporated in UF2 | [MIT](licenses/tinyusb-MIT.txt) |
 | pvvx `TlsrComSwireWriter` / `TLSR825xComFlasher.py` / `TLSR826xComFlasher.py` | Vendored pinned host reader/flasher, upstream author pvvx and listed contributors | [Unlicense](licenses/pvvx-Unlicense.txt) |
+| Three.js 0.186.1 | Local interactive viewer for the adapter assembly | [MIT](hardware/as-built/viewer/vendor/THREE-LICENSE.txt) |
 
 Pico SDK and TinyUSB sources are external build dependencies, not vendored here.
 The supplied UF2 retains their distributed binary attribution through these

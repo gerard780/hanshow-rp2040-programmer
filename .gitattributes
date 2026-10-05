@@ -5,3 +5,6 @@
 *.c text eol=lf
 *.h text eol=lf
 *.pio text eol=lf
+hardware/as-built/models/** binary linguist-generated=true
+hardware/as-built/exports/** linguist-generated=true
+hardware/as-built/viewer/vendor/** linguist-vendored=true

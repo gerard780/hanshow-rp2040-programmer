@@ -14,6 +14,11 @@ addressing still limit compatibility; modern Telink families need their own
 backend. The known Nebular chip/flash path has bench evidence. Other chips and
 the 826x framing path remain experimental until tested on physical hardware.
 
+**Development update, 5 October 2026:** a separate bench v1.4 prototype now
+has faster PIO capture and read/write tools defaulting to 2 Mbaud, with a
+1.5 Mbaud fallback. Those changes are not included in this repository's v1.3
+UF2. See the [development status and measured results](docs/DEVELOPMENT-STATUS.md).
+
 ## Build the programmer
 
 You need a **Waveshare RP2040-Zero**, USB data cable, a **1 kΩ resistor** and
@@ -41,6 +46,25 @@ it from the Zero's 3V3 output. This diagram is a signal map, not a tag pad map.
 
 See [Waveshare's board documentation](https://www.waveshare.com/wiki/RP2040-Zero)
 for the Zero layout.
+
+## Completed adapter, schematic and photos
+
+The [hardware package](hardware/as-built/README.md) documents Gerard780's
+completed hand-wired programmer with both original photos, an editable
+KiCad 7+ project, project-local symbols/footprints and an illustrative 3D
+assembly. The schematic matches the GPIO wiring above.
+
+![Completed RP2040-Zero programmer](hardware/as-built/reference/adapter-photo.jpg)
+
+[Printable schematic PDF](hardware/as-built/exports/schematic.pdf) ·
+[Editable schematic](hardware/as-built/RP2040_Tag_Adapter.kicad_sch) ·
+[Tag connector photo](hardware/as-built/reference/tag-connector-photo.jpg) ·
+[3D render](hardware/as-built/exports/adapter-render.png)
+
+The PCB file records the existing assembly. Its dimensions and wire shapes
+are approximate; it is not a routed board for fabrication. Instructions for
+opening the CAD project and local interactive 3D viewer are in the hardware
+package.
 
 ## Install the programmer UF2
 
