@@ -24,9 +24,14 @@ the combined public v1.5 UF2 still needs physical validation.
 
 [Download the experimental v1.5 release](https://github.com/gerard780/hanshow-rp2040-programmer/releases/tag/v1.5) ·
 [Open the browser dumper](https://gerard780.github.io/hanshow-rp2040-programmer/) ·
-[Standalone HTML and hosting](firmware-dumper/README.md) ·
+[Standalone HTML, CH340 support and hosting](firmware-dumper/README.md) ·
 [Guarded write tools](tools/speed/README.md) ·
 [Development results](docs/DEVELOPMENT-STATUS.md)
+
+The browser dumper also supports a **CH340/CH341 USB UART** through Web Serial,
+at 921600 baud, with separate wiring instructions and two complete matching
+reads. Select the adapter on the page; CH340 needs no RP2040 firmware. This path
+is slower than native RP2040 reads and still needs physical browser validation.
 
 ## Build the programmer
 

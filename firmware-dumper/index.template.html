@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tag firmware backup · RP2040</title>
+  <title>Tag firmware backup · RP2040 / CH340</title>
   <link rel="icon" href="data:,">
   <style>
     :root {color-scheme:dark; font-family:system-ui,sans-serif; background:#10171b; color:#e8f0f1}
@@ -14,6 +14,7 @@
     .grid {display:grid; grid-template-columns:1fr 1fr; gap:24px} table {width:100%; border-collapse:collapse; font-size:14px}
     th,td {text-align:left; padding:7px 5px; border-bottom:1px solid #344249} th {color:#b7c9cc}
     label {display:block; line-height:1.5; margin:12px 0} input[type=number],select {width:110px; background:#10171b; border:1px solid #60767e; border-radius:5px; color:inherit; padding:8px; margin-left:10px}
+    select {width:auto; max-width:100%}
     input[type=checkbox] {accent-color:#80e0cc; margin-right:8px} button,.download {font:inherit; border-radius:8px; padding:12px 17px; border:1px solid #657b83; color:inherit; background:#26383f; cursor:pointer; display:inline-block; text-decoration:none}
     button.primary {background:#80e0cc; color:#102621; border-color:#80e0cc; font-weight:650} button:disabled {opacity:.4; cursor:default}
     .actions {display:flex; flex-wrap:wrap; gap:10px; align-items:center} .device {font-size:14px; margin:10px 0 0; overflow-wrap:anywhere}
@@ -24,11 +25,15 @@
   </style>
 </head>
 <body><main>
-  <div class="eyebrow">OPENEPAPERLINK · RP2040-ZERO</div>
+  <div class="eyebrow">OPENEPAPERLINK · RP2040-ZERO / CH340</div>
   <h1>Back up the entire tag.</h1>
   <p>Download every byte of the tag’s main flash, including firmware, settings and calibration data. Everything runs locally in your browser.</p>
   <p id="compatibility" class="notice" hidden></p>
-  <section class="grid">
+  <section>
+    <h2>Choose your adapter</h2>
+    <label>Adapter <select id="adapter"><option value="rp2040">RP2040-Zero</option><option value="ch340">CH340 / CH341 UART</option></select></label>
+  </section>
+  <section class="grid" id="rp2040-guide">
     <div>
       <h2>1. Prepare the programmer</h2>
       <p>Install <a href="@@PROGRAMMER_UF2@@" download="hanshow_pio_bridge.uf2">RP2040 bridge v@@PROGRAMMER_VERSION@@ UF2</a> using BOOTSEL, then reconnect normally. The tag needs no firmware update.</p>
@@ -44,16 +49,32 @@
       <p>GP4/GP5 UART wires are optional for backup.</p>
     </div>
   </section>
+  <section class="grid" id="ch340-guide" hidden>
+    <div>
+      <h2>1. Prepare the CH340</h2>
+      <p>Use a USB UART adapter with <strong>3.3 V logic</strong>. No programmer firmware is needed. Set its voltage selector correctly and check its TX level; a 3.3 V power pin alone does not establish its logic voltage.</p>
+      <p>Power the tag from 3.3 V with its batteries removed. Use short leads and a common ground. Leave DTR unconnected.</p>
+    </div>
+    <div>
+      <h2>Wire the tag to the CH340</h2>
+      <table><thead><tr><th>CH340 connection</th><th>Tag pad</th></tr></thead><tbody>
+        <tr><td>TX through 1 kΩ</td><td>SWS</td></tr><tr><td>RX directly</td><td>SWS</td></tr>
+        <tr><td>RTS (optional, active low)</td><td>RST</td></tr><tr><td>3.3 V supply</td><td>VCC</td></tr><tr><td>GND</td><td>GND</td></tr>
+      </tbody></table>
+      <p>Both TX and RX connect to the same SWS pad. Without RTS wiring, leave the reset option off.</p>
+    </div>
+  </section>
   <section>
-    <h2>2. Connect the RP2040</h2>
-    <p>Choose the programmer, then its <strong>SWS readback</strong> serial port (first interface / <code>if00</code>). Close other flashers and serial monitors first.</p>
+    <h2>2. Connect your adapter</h2>
+    <p id="connection-help"></p>
     <div class="actions"><button id="usb">Choose RP2040</button><button id="serial" disabled>Choose SWS port</button><button id="disconnect" disabled>Disconnect</button></div>
     <p class="device" id="device">No programmer connected.</p>
     <label>Read speed <select id="baud"><option value="2000000">2 Mbaud</option><option value="1500000">1.5 Mbaud — fallback</option><option value="921600" selected>921600 baud — legacy</option></select></label>
     <label>Activation time (ms)<input id="activation" type="number" min="100" max="10000" step="100" value="3000"></label>
-    <label><input id="reset" type="checkbox" checked>Use GP2 to reset the tag before capture</label>
+    <label><input id="reset" type="checkbox" checked><span id="reset-label">Use GP2 to reset the tag before capture</span></label>
     <label><input id="verify" type="checkbox" checked>Read the entire flash twice and require an exact match</label>
-    <p>The v1.4/v1.5 bridge defaults to 2 Mbaud. Previous Python bench reads took about 30 seconds per 512 KiB pass at this rate; browser timing may differ. If verification fails, reconnect and select 1.5 Mbaud before choosing the serial port. With this option off, verification checks 256-byte samples every 64 KiB and at the end.</p>
+    <p id="speed-help"></p>
+    <p>With full verification off, checks cover 256-byte samples every 64 KiB and at the end.</p>
   </section>
   <section aria-live="polite">
     <h2>3. Capture and download</h2>
@@ -63,7 +84,7 @@
     <p id="detail">The tag pauses during capture and is reset afterward. The dumper issues no flash erase, program or unlock commands.</p>
     <div id="result" hidden><p id="summary"></p><p id="hash"></p><div class="actions"><a id="binary" class="download">Download full flash (.bin)</a><a id="report" class="download">Download backup report (.json)</a></div></div>
   </section>
-  <p>Web dumper revision: 2026-10-05.2</p>
+  <p>Web dumper revision: 2026-10-05.3</p>
   <section><h2>Activity</h2><pre id="log" role="log"></pre><button id="save-log">Save activity log</button></section>
   <p>Supports TLSR825x chip ID 0x5562 and recognized flash IDs. Captures main flash address zero through the detected capacity; separate OTP/security registers are excluded. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/firmware-dumper/README.md">Details and troubleshooting</a>.</p>
 </main><script src="sws.js"></script><script src="app.js"></script></body></html>

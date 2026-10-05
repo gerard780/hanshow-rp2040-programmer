@@ -85,3 +85,25 @@ full-image downloads, a mismatch inside the reported `0x035000` block,
 cancellation, cleanup and standalone HTML operation. The revised browser still
 needs physical validation on the affected tag; these checks do not establish
 that the reported failure is resolved.
+
+## Browser revision 2026-10-05.3 — CH340
+
+CH340/CH341 UART mode uses Web Serial only, 921600 baud and calibrated legacy
+SWS samples in 256-byte flash blocks. The page offers separate adapter wiring,
+checks the selected UART USB ID, and defaults its optional RTS reset pulse off.
+It waits for each waveform chunk's echo before queuing the next, including
+activation traffic, to preserve complete SWS words without a Web Serial flush.
+The RP2040 USB/serial pairing and native block path remain separate.
+
+Serial simulations exercise complete two-pass reads over fragmented replies,
+mismatches, diagnostic rereads, invalid samples, wrong adapters, unsupported
+flash, cancellation and cleanup. A delayed-echo test rejects queuing the next
+waveform chunk before the previous echo arrives. Chromium checks run without
+WebUSB and validate CH340 filters, wiring selection, baud, real binary/report
+downloads, wrong-port rejection, cancellation, closed handles and mobile layout.
+The RP2040 browser regression checks also pass. These tests use synthetic
+64 KiB CH340 flash data and 512 KiB RP2040 data, without opening a physical port.
+
+The legacy CH340 UART/SWS protocol has earlier physical readback evidence; the
+new browser CH340 path still needs testing on the physical adapter and tag.
+No tag flash erase, program, unlock or status-write path was added.
