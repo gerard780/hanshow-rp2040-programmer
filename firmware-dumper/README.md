@@ -1,11 +1,9 @@
-# Browser tag firmware dumper — RP2040 and CH340
+# Browser tag firmware dumper
 
-Capture a tag's complete main flash using an **RP2040-Zero** or a **CH340/CH341
-USB UART** in desktop Chrome or Edge. RP2040 uses WebUSB plus Web Serial;
-CH340 uses Web Serial alone and needs no programmer firmware. The binary and
-verification report stay on your computer. For RP2040, install the
-[public v1.5 UF2](../dist/hanshow_pio_bridge.uf2) using BOOTSEL.
-Tag firmware does not need to be changed for either adapter.
+Capture a tag's complete main flash through the RP2040-Zero using WebUSB and
+Web Serial in desktop Chrome or Edge. The binary and verification report stay
+on your computer. Install the [public v1.5 UF2](../dist/hanshow_pio_bridge.uf2)
+on the programmer using BOOTSEL; tag firmware does not need to be changed.
 
 **[Open the hosted dumper](https://gerard780.github.io/hanshow-rp2040-programmer/)**
 
@@ -41,19 +39,19 @@ The builder verifies the UF2 against its manifest and produces identical
 `firmware-dumper/index.html` and `docs/index.html`. GitHub Pages uses main's
 `/docs` directory; `.nojekyll` keeps the published HTML as generated.
 
-## RP2040 capture
+## Capture
 
 1. Connect the tag according to the [wiring guide](../README.md). Remove its
    battery when powering it from the Zero's 3V3. GP0 goes through 1 kΩ to SWS;
    GP1 connects directly to that same SWS node. GP2 goes to RST. UART is optional.
-2. Select **RP2040-Zero** in the adapter menu, then choose the RP2040 USB device, then its **SWS `if00` serial interface**.
+2. Choose the RP2040 USB device, then its **SWS `if00` serial interface**.
    Close other serial tools. The browser verifies USB/serial association before
    halting the CPU. On v1.5 it selects and verifies three-byte SWS addressing
    before opening serial, including after a Python 826x readback session.
 3. Leave full verification enabled and click **Dump full flash**. The browser
    reads the complete detected main flash twice and compares every byte.
-4. Save both the `.bin` and `.json` report. Matching complete reads are required
-   for a fully verified backup. The report and activity log record cleanup errors.
+4. Save both the `.bin` and `.json` report. Matching complete reads and successful
+   cleanup are required before the complete-backup downloads become available.
 
 The browser defaults to **2 Mbaud on v1.4/v1.5**, matching the Python reader,
 and 921600 baud on v1.3. For a verification failure, reconnect and select
@@ -63,48 +61,6 @@ The activity log and downloaded report record the actual capture baud/divider.
 Use [readback.py](../readback.py) for broader legacy backend probing.
 Browser capture with the combined v1.5 build still needs physical validation.
 The software tests use simulated USB/serial data, not a connected tag.
-
-## CH340/CH341 capture
-
-Select **CH340 / CH341 UART** in the adapter menu. The page then shows CH340
-wiring and a single **Choose CH340 port** button; it does not request a WebUSB
-device, install a UF2 or use RP2040 vendor commands. Your operating system must
-provide the adapter's serial driver so Chrome/Edge can list its port.
-
-Use a **3.3 V logic** adapter and a 3.3 V tag supply. A board's 3.3 V supply pin
-does not establish the voltage of its TX/modem signals. Remove the tag battery
-when supplying power externally. Wire these connections:
-
-| USB UART connection | Tag connection |
-| --- | --- |
-| TX through 1 kΩ | SWS |
-| RX directly | The same SWS pad |
-| GND | GND |
-| 3.3 V supply | VCC |
-| RTS, optional active-low output | RST |
-
-Leave DTR unconnected. Reset pulses are **off by default** in CH340 mode; enable
-them only with RTS connected to the tag's reset pad. Otherwise the tool uses
-SWS soft reset/CPU-stop activation. If firmware sleeps before it can respond,
-try manual reset or a longer activation time. Close other serial tools first.
-
-The browser opens at **921600 baud** and calibrates SWS using register readback
-and three matching known chip responses. The 60-byte waveform chunks wait for
-their UART echoes individually, including activation traffic. Reads request and
-decode nine sampled UART bytes for each flash byte, matching the existing
-legacy UART/SWS path; no native PIO capture exists in the CH340 adapter.
-Consequently this mode takes longer than RP2040 native block capture.
-
-Leave full verification checked, click **Dump full flash**, and save the binary
-and report after two complete reads agree. The report identifies the adapter
-and its USB VID/PID. Mismatch, cancellation and cleanup handling apply to both
-modes. Known UART USB IDs come from the
-[Linux CH341 serial driver](https://github.com/torvalds/linux/blob/master/drivers/usb/serial/ch341.c);
-this does not support a CH341 board operating as an SPI/I²C programmer.
-
-The browser CH340 path has protocol and simulated Chromium tests. It uses the
-legacy transport previously exercised with a physical CH340, but the new
-browser path has not yet been validated on a physical CH340/tag combination.
 
 ## Scope and verification
 
@@ -145,12 +101,10 @@ The v1.5 firmware exposes two CDC interfaces plus control-only vendor interface
 the serial interfaces retain normal drivers. Linux needs serial and USB
 permissions for prototype VID/PID `cafe:4012`.
 
-Run `node --test firmware-dumper/tests/readback.test.cjs firmware-dumper/tests/ch340.test.cjs` for protocol, full-read,
+Run `node --test firmware-dumper/tests/readback.test.cjs` for protocol, full-read,
 mismatch, cancellation, identity and address-width tests. The optional
 `tests/browser-smoke.cjs` uses Playwright and simulated devices to check actual
-UI downloads and cleanup. `tests/ch340-browser-smoke.cjs` checks serial-only
-capture with WebUSB absent, adapter filters, downloads, wrong ports and
-cancellation. `DUMPER_URL` and `CHROMIUM_PATH` configure the local
+UI downloads and cleanup; `DUMPER_URL` and `CHROMIUM_PATH` configure its local
 preview and browser. Compiled descriptor checks are in
 `tests/test_descriptors.py`; `PROGRAMMER_BUILD_DIR` selects the firmware build.
 See [validation](../docs/VALIDATION.md) for physical evidence and limits.

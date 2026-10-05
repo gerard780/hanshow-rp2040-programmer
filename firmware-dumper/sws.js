@@ -4,7 +4,7 @@
  */
 (function (root) {
   'use strict';
-  const revision = '2026-10-05.3';
+  const revision = '2026-10-05.2';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const equal = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -23,15 +23,6 @@
   const stop = () => encode([0xff]);
   const baudRates = [921600, 1500000, 2000000];
   function defaultBaud(version) { return ['1.4', '1.5'].includes(version) ? 2000000 : 921600; }
-  // USB IDs from the Linux CH341 serial driver; covers common CH340/CH341
-  // UART adapters. The OS driver owns USB; this path uses Web Serial only.
-  const ch340Filters = Object.freeze([
-    [0x1a86, 0x5523], [0x1a86, 0x7522], [0x1a86, 0x7523],
-    [0x2184, 0x0057], [0x4348, 0x5523], [0x9986, 0x7523],
-  ].map(([usbVendorId, usbProductId]) => Object.freeze({usbVendorId, usbProductId})));
-  function isCH340(info) {
-    return ch340Filters.some(filter => filter.usbVendorId === info.usbVendorId && filter.usbProductId === info.usbProductId);
-  }
   const header = (address, mode) => [0x5a, (address >> 16) & 255, (address >> 8) & 255, address & 255, mode];
   function writePacket(address, data) {
     const body = encode([...header(address, 0), ...data]);
@@ -61,7 +52,7 @@
       this.reader = port.readable.getReader();
       this.writer = port.writable.getWriter();
       this.queue = []; this.available = 0; this.waiter = null;
-      this.error = null; this.closing = false; this.chunkEcho = false;
+      this.error = null; this.closing = false;
       this.pumpTask = this.pump();
     }
     wake() { if (this.waiter) { const wake = this.waiter; this.waiter = null; wake(); } }
@@ -107,22 +98,13 @@
     }
     async send(bytes, echo = true) {
       if (this.error) throw this.error;
-      const chunkedEcho = this.chunkEcho && bytes.length % 10 === 0;
       // Keep entire 10-byte SWS words within 60-byte CH340 USB transfers.
       for (let offset = 0; offset < bytes.length; offset += 60) {
         try {
           await bounded(this.writer.write(bytes.subarray(offset, offset + 60)), 2000, 'Serial write timed out');
         } catch (error) { this.error = error; throw error; }
-        if (chunkedEcho) {
-          // Web Serial has no UART flush(). Waiting for each waveform chunk's
-          // echo prevents queued CH340 writes combining into a split SWS word.
-          // Read triggers are one byte and their nine samples are decoded later.
-          const chunk = bytes.subarray(offset, offset + 60);
-          const received = await this.readExactly(chunk.length);
-          if (echo && !equal(received, chunk)) throw new Error('Serial echo mismatch; check wiring and baud rate');
-        }
       }
-      if (echo && !chunkedEcho && !equal(await this.readExactly(bytes.length), bytes)) throw new Error('Serial echo mismatch; check wiring and baud rate');
+      if (echo && !equal(await this.readExactly(bytes.length), bytes)) throw new Error('Serial echo mismatch; check wiring and baud rate');
     }
     async close() {
       this.closing = true; this.wake();
@@ -236,29 +218,6 @@
       await attempt(() => this.reg(0x6f, [0x22]));
       await attempt(() => this.io.port.setSignals({dataTerminalReady: false, requestToSend: false}));
       return warnings;
-    }
-  }
-
-  class CH340Reader extends Reader {
-    constructor(io, log) {
-      super(io, log, 921600);
-      this.blockSize = 256;
-      this.io.chunkEcho = true;
-    }
-    async activate(options) {
-      const info = this.io.port.getInfo();
-      if (!isCH340(info)) throw new Error('Select a CH340/CH341 USB serial adapter');
-      this.targetTouched = true;
-      const identity = await super.activate(options);
-      this.log(`Capture timing: ${this.baudRate.toLocaleString()} baud, SWS divider ${identity.divisor} (UART sample calibration).`);
-      this.transportDetails = {programmer: 'CH340/CH341 USB UART',
-        mode: 'serial SWS, 256-byte flash blocks', usbVendorId: info.usbVendorId,
-        usbProductId: info.usbProductId};
-      return identity;
-    }
-    async restore() {
-      if (!this.targetTouched) return [];
-      return super.restore();
     }
   }
 
@@ -438,7 +397,7 @@
     result.metadata.cleanupWarnings = warnings;
     return result;
   }
-  const api = {encode, writePacket, decode, SerialIO, Reader, USBBridge, RP2040Reader, capture, flashSize, hex, equal, defaultBaud, revision, CH340Reader, ch340Filters, isCH340};
+  const api = {encode, writePacket, decode, SerialIO, Reader, USBBridge, RP2040Reader, capture, flashSize, hex, equal, defaultBaud, revision};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FirmwareDump = api;
 })(globalThis);

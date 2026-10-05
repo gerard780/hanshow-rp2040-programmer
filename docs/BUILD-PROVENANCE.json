@@ -8,7 +8,7 @@
     "CMakeLists.txt": "4f104ec63bb41b9d32d7b0d1093b5cc5e8b1c29449669c67122d8b607d2f9e6e",
     "readback.py": "2ff2362c98330f2ee0b424e151097933c41167efd8eb6e8d61d428916aae902a",
     "benchmark_readback.py": "bdc46f8d74e656ed91ccdb0d79e6687a52b96bf766d4778955e2b21a38dea843",
-    "firmware-dumper/sws.js": "91aa39cc2f18d91880738f1a490e9d34591ad23ac91a200d616d3db0819297ad",
+    "firmware-dumper/sws.js": "5478d203308e82d28d696e9b8223b82ad40dfbe146a3e050be3b31637ce02d85",
     "tools/speed/flash_backend.py": "b1be13ef8c37d944f6ee4acc7fc62ceff63ac804a23ccffe110f26bf9712b5cf",
     "tools/speed/write_validation.py": "fecd51b4ca68cfedd3141023f278caf497dcc6846f84cd6ce969c4cc2ad5898b"
   },

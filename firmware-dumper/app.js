@@ -1,37 +1,24 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const {SerialIO, USBBridge, RP2040Reader, capture, hex, defaultBaud, revision, CH340Reader, ch340Filters, isCH340} = FirmwareDump;
+  const {SerialIO, USBBridge, RP2040Reader, capture, hex, defaultBaud, revision} = FirmwareDump;
   let bridge = null, io = null, controller = null, busy = false;
   let baudRate = 921600;
   let usbLabel = '', serialLabel = '', urls = [], started = 0, phase = '', phaseStarted = 0;
-  const supported = isSecureContext && !!navigator.serial && !!crypto.subtle;
+  const supported = isSecureContext && !!navigator.serial && !!navigator.usb && !!crypto.subtle;
   function log(message) {
     $('log').textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
     $('log').scrollTop = $('log').scrollHeight;
   }
-  const usesCH340 = () => $('adapter').value === 'ch340';
   function render() {
-    const ch340 = usesCH340();
-    $('adapter').disabled = busy || !!bridge || !!io;
-    $('rp2040-guide').hidden = ch340; $('ch340-guide').hidden = !ch340;
-    $('connection-help').textContent = ch340
-      ? 'Choose your CH340/CH341 USB serial port. Close other flashers and serial monitors first.'
-      : 'Choose the RP2040, then its SWS readback serial port (first interface / if00). Close other flashers and serial monitors first.';
-    $('usb').hidden = ch340;
-    $('usb').disabled = busy || !supported || !navigator.usb || !!bridge;
-    $('baud').disabled = busy || !!io || ch340;
-    $('serial').textContent = ch340 ? 'Choose CH340 port' : 'Choose SWS port';
-    $('serial').disabled = busy || !supported || (!ch340 && !bridge) || !!io;
+    $('usb').disabled = busy || !supported || !!bridge;
+    $('baud').disabled = busy || !!io;
+    $('serial').disabled = busy || !bridge || !!io;
     $('disconnect').disabled = busy || (!bridge && !io);
-    $('dump').disabled = busy || (!usesCH340() && !bridge) || !io;
+    $('dump').disabled = busy || !bridge || !io;
     $('cancel').disabled = !controller || controller.signal.aborted;
     for (const id of ['activation', 'verify', 'reset']) $(id).disabled = busy;
     $('device').textContent = [usbLabel, serialLabel].filter(Boolean).join(' · ') || 'No programmer connected.';
-    $('reset-label').textContent = ch340 ? 'Pulse RTS to reset the tag (only with RTS wired to RST)' : 'Use GP2 to reset the tag before capture';
-    $('speed-help').textContent = ch340
-      ? 'CH340 uses UART samples at 921600 baud, one request per byte. Full backups take longer than the RP2040’s native block reads.'
-      : 'The v1.4/v1.5 bridge defaults to 2 Mbaud. Previous Python bench reads took about 30 seconds per 512 KiB pass; browser timing may differ. If verification fails, reconnect and select 1.5 Mbaud before choosing the serial port.';
   }
   function clearResult() {
     for (const url of urls) URL.revokeObjectURL(url);
@@ -51,12 +38,6 @@
     for (const error of errors) log(`Connection cleanup: ${error}`);
     return errors;
   }
-  $('adapter').onchange = () => {
-    $('baud').value = '921600';
-    $('reset').checked = !usesCH340();
-    clearResult(); render();
-    $('status').textContent = usesCH340() ? 'Choose the CH340 serial port.' : 'Choose the RP2040 programmer.';
-  };
   $('usb').onclick = async () => {
     // requestDevice runs directly in the click's user activation.
     busy = true; render();
@@ -76,21 +57,19 @@
   $('serial').onclick = async () => {
     busy = true; render(); let port;
     try {
-      const ch340 = usesCH340();
-      port = await navigator.serial.requestPort({filters: ch340 ? ch340Filters : [{usbVendorId: 0xcafe, usbProductId: 0x4012}]});
-      if (ch340 && !isCH340(port.getInfo())) throw new Error('Select a CH340/CH341 USB serial adapter');
-      baudRate = ch340 ? 921600 : Number($('baud').value);
+      port = await navigator.serial.requestPort({filters: [{usbVendorId: 0xcafe, usbProductId: 0x4012}]});
+      baudRate = Number($('baud').value);
       await port.open({baudRate, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none', bufferSize: 8192});
-      // RP2040 uses DTR for its SWS engine; CH340 leaves modem lines released.
-      await port.setSignals({dataTerminalReady: !ch340, requestToSend: false});
-      io = new SerialIO(port); io.chunkEcho = ch340; serialLabel = `${ch340 ? 'CH340' : 'SWS'} serial port open at ${baudRate.toLocaleString()} baud`;
-      log(ch340 ? 'CH340 serial port connected at 921600 baud. SWS echo, chip ID and flash size will be checked before capture.' : `Serial port connected at ${baudRate.toLocaleString()} baud. Its association with this bridge will be checked before capture.`);
+      // DTR true enables the bridge SWS engine. RTS false releases reset.
+      await port.setSignals({dataTerminalReady: true, requestToSend: false});
+      io = new SerialIO(port); serialLabel = `Serial port open at ${baudRate.toLocaleString()} baud`;
+      log(`Serial port connected at ${baudRate.toLocaleString()} baud. Its association with this bridge will be checked before capture.`);
       $('status').textContent = 'Ready to dump full flash.';
     } catch (error) {
       log(`Serial: ${error.message}`);
       if (io) { try { await io.close(); } catch (e) { log(e.message); } io = null; }
       else if (port?.readable) { try { await port.close(); } catch (e) { log(e.message); } }
-      serialLabel = ''; $('status').textContent = 'Serial connection failed; choose the adapter’s serial port again.';
+      serialLabel = ''; $('status').textContent = 'Serial connection failed; choose the SWS port again.';
     } finally { busy = false; render(); }
   };
   $('disconnect').onclick = async () => {
@@ -120,8 +99,7 @@
     log(`Web dumper ${revision}. Starting full-flash backup. Verification: ${fullVerify ? 'two full reads' : 'sample readback'}.`);
     let result = null, failure = null;
     try {
-      const reader = usesCH340() ? new CH340Reader(io, log) : new RP2040Reader(io, bridge, log, baudRate);
-      result = await capture(reader, {
+      result = await capture(new RP2040Reader(io, bridge, log, baudRate), {
         signal: controller.signal, activationMs, pulseReset: $('reset').checked, fullVerify, progress,
       });
       const digest = hex(new Uint8Array(await crypto.subtle.digest('SHA-256', result.data)));
@@ -162,7 +140,7 @@
   window.addEventListener('beforeunload', event => { if (busy) { event.preventDefault(); event.returnValue = ''; } });
   if (!supported) {
     $('compatibility').hidden = false;
-    $('compatibility').textContent = 'Open this page in desktop Chrome or Edge using HTTPS or localhost. This browser/context does not provide the required serial and checksum APIs. RP2040 mode also requires WebUSB.';
+    $('compatibility').textContent = 'Open this page in desktop Chrome or Edge using HTTPS or localhost. This browser/context does not provide the required USB, serial and checksum APIs.';
   }
   render();
 })();
