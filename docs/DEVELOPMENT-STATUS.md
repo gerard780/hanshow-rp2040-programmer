@@ -53,10 +53,7 @@ checks passed, including recognition of the bench v1.4 revision. Physical
 browser capture still needs validation. The browser application
 and its USB descriptors are included in the public v1.5 release here.
 
-## Hardware documentation now published
+## Hardware documentation
 
-The [completed adapter package](../hardware/as-built/README.md) includes the
-original programmer and tag-connector photos, editable KiCad schematic,
-printable schematic PDF, assembly PCB document, 3D models/render and local
-viewer. The circuit records the existing seven GPIO/power connections and
-the 1 kΩ SWS resistor. It is an assembly record, not a fabrication design.
+The wiring diagram, GPIO table and original programmer photos document the
+hand-wired adapter and its 1 kΩ SWS resistor.
