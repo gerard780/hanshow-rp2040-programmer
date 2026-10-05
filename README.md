@@ -56,24 +56,14 @@ it from the Zero's 3V3 output. This diagram is a signal map, not a tag pad map.
 See [Waveshare's board documentation](https://www.waveshare.com/wiki/RP2040-Zero)
 for the Zero layout.
 
-## Completed adapter, schematic and photos
+## Programmer photos
 
-The [hardware package](hardware/as-built/README.md) documents Gerard780's
-completed hand-wired programmer with both original photos, an editable
-KiCad 7+ project, project-local symbols/footprints and an illustrative 3D
-assembly. The schematic matches the GPIO wiring above.
+Original photos of Gerard780's hand-wired RP2040-Zero programmer.
+The wiring diagram and GPIO table above describe its connections.
 
-![Completed RP2040-Zero programmer](hardware/as-built/reference/adapter-photo.jpg)
+![Completed RP2040-Zero programmer](hardware/photos/adapter-photo.jpg)
 
-[Printable schematic PDF](hardware/as-built/exports/schematic.pdf) ·
-[Editable schematic](hardware/as-built/RP2040_Tag_Adapter.kicad_sch) ·
-[Tag connector photo](hardware/as-built/reference/tag-connector-photo.jpg) ·
-[3D render](hardware/as-built/exports/adapter-render.png)
-
-The PCB file records the existing assembly. Its dimensions and wire shapes
-are approximate; it is not a routed board for fabrication. Instructions for
-opening the CAD project and local interactive 3D viewer are in the hardware
-package.
+[Tag connector photo](hardware/photos/tag-connector-photo.jpg)
 
 ## Install the programmer UF2
 

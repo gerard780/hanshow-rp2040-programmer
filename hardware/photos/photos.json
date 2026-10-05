@@ -1,0 +1,13 @@
+{
+  "credit": "Original photographs supplied by Gerard780; used to document the completed hand-wired adapter.",
+  "photos": [
+    {
+      "file": "adapter-photo.jpg",
+      "sha256": "58f0c22f859825d7c794b75323de6315064f9fd2ef8978b6c3a4ebf7baaa5415"
+    },
+    {
+      "file": "tag-connector-photo.jpg",
+      "sha256": "c680d09ffde99f576b65c3dbe3d411d75a292690063974bb0ad051a95227d42c"
+    }
+  ]
+}

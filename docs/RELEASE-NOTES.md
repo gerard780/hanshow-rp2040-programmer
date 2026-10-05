@@ -9,8 +9,8 @@ Includes the browser dumper with two complete matching reads by default,
 Windows WinUSB descriptors for interface 4, and the guarded 256-byte-page
 flash backend/sector-validation tools. Browser sessions verify three-byte
 framing before opening CDC; broader Python reads preserve 825x/826x probing.
-All source, the rebuilt UF2, original adapter photos, KiCad schematic and 3D
-assembly are included in the repository/source archive.
+Programmer source, the rebuilt UF2, original adapter photos and the wiring
+diagram are included in the repository/source archive.
 
 The pinned source build passes without warnings. Reader/PIO, guarded-write,
 browser protocol/UI and compiled USB descriptor checks passed. Prior bench
