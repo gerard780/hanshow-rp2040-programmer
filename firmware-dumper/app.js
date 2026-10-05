@@ -1,8 +1,9 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const {SerialIO, USBBridge, RP2040Reader, capture, hex} = FirmwareDump;
+  const {SerialIO, USBBridge, RP2040Reader, capture, hex, defaultBaud, revision} = FirmwareDump;
   let bridge = null, io = null, controller = null, busy = false;
+  let baudRate = 921600;
   let usbLabel = '', serialLabel = '', urls = [], started = 0, phase = '', phaseStarted = 0;
   const supported = isSecureContext && !!navigator.serial && !!navigator.usb && !!crypto.subtle;
   function log(message) {
@@ -11,6 +12,7 @@
   }
   function render() {
     $('usb').disabled = busy || !supported || !!bridge;
+    $('baud').disabled = busy || !!io;
     $('serial').disabled = busy || !bridge || !!io;
     $('disconnect').disabled = busy || (!bridge && !io);
     $('dump').disabled = busy || !bridge || !io;
@@ -43,6 +45,7 @@
       const device = await navigator.usb.requestDevice({filters: [{vendorId: 0xcafe, productId: 0x4012}]});
       bridge = new USBBridge(device);
       const info = await bridge.open();
+      $('baud').value = String(defaultBaud(info.version));
       usbLabel = `RP2040 v${info.version} (${device.serialNumber || 'no serial ID'})`;
       log(`Connected ${usbLabel}. Select its SWS serial port next.`);
       $('status').textContent = 'Choose the SWS serial port.';
@@ -55,11 +58,12 @@
     busy = true; render(); let port;
     try {
       port = await navigator.serial.requestPort({filters: [{usbVendorId: 0xcafe, usbProductId: 0x4012}]});
-      await port.open({baudRate: 921600, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none', bufferSize: 8192});
+      baudRate = Number($('baud').value);
+      await port.open({baudRate, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none', bufferSize: 8192});
       // DTR true enables the bridge SWS engine. RTS false releases reset.
       await port.setSignals({dataTerminalReady: true, requestToSend: false});
-      io = new SerialIO(port); serialLabel = 'Serial port open at 921600 baud';
-      log('Serial port connected. Its association with this bridge will be checked before capture.');
+      io = new SerialIO(port); serialLabel = `Serial port open at ${baudRate.toLocaleString()} baud`;
+      log(`Serial port connected at ${baudRate.toLocaleString()} baud. Its association with this bridge will be checked before capture.`);
       $('status').textContent = 'Ready to dump full flash.';
     } catch (error) {
       log(`Serial: ${error.message}`);
@@ -92,10 +96,10 @@
     $('progress').value = 0; $('status').textContent = 'Identifying tag and flash…';
     started = performance.now(); phase = '';
     const fullVerify = $('verify').checked;
-    log(`Starting full-flash backup. Verification: ${fullVerify ? 'two full reads' : 'sample readback'}.`);
+    log(`Web dumper ${revision}. Starting full-flash backup. Verification: ${fullVerify ? 'two full reads' : 'sample readback'}.`);
     let result = null, failure = null;
     try {
-      result = await capture(new RP2040Reader(io, bridge, log), {
+      result = await capture(new RP2040Reader(io, bridge, log, baudRate), {
         signal: controller.signal, activationMs, pulseReset: $('reset').checked, fullVerify, progress,
       });
       const digest = hex(new Uint8Array(await crypto.subtle.digest('SHA-256', result.data)));

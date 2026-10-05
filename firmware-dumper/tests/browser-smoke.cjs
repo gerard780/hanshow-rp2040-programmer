@@ -27,9 +27,12 @@ const crypto = require('node:crypto');
     const uf2 = fs.readFileSync(await (await uf2Download).path());
     assert.deepEqual(uf2, fs.readFileSync(__dirname + '/../../dist/hanshow_pio_bridge.uf2'));
     await page.screenshot({path: '/tmp/firmware-dumper-desktop.png', fullPage: true});
-    async function connect() {
+    async function connect(baud) {
       await page.locator('#usb').click();
+      assert.equal(await page.locator('#baud').inputValue(), '2000000');
+      if (baud) await page.locator('#baud').selectOption(baud);
       await page.locator('#serial').click();
+      assert(await page.locator('#baud').isDisabled());
       await page.locator('#activation').fill('100');
     }
     await connect(); await page.locator('#dump').click();
@@ -42,6 +45,8 @@ const crypto = require('node:crypto');
     const report = await reportDownload; const metadata = JSON.parse(fs.readFileSync(await report.path()));
     assert.equal(metadata.sha256, crypto.createHash('sha256').update(data).digest('hex'));
     assert.equal(metadata.verification, 'two complete matching reads');
+    assert.equal(metadata.baudRate, 2000000);
+    assert.equal(metadata.divisor, 24);
     assert.equal(metadata.resetEchoVerified, true);
     assert(await page.locator('#dump').isDisabled()); // handles close after capture
     assert.match(await page.locator('#status').textContent(), /backup ready/);
@@ -51,18 +56,21 @@ const crypto = require('node:crypto');
     await page.screenshot({path: '/tmp/firmware-dumper-mobile.png', fullPage: true});
 
     // Reconnect with fresh streams, then force a verification mismatch.
-    await page.evaluate(() => { window.mockBridge = new FakeRP2040(); window.mockBridge.corruptAtBlock = 129; });
+    await page.evaluate(() => { window.mockBridge = new FakeRP2040(); window.mockBridge.corruptAtBlock = 182; window.mockBridge.corruptOffset = 0xabc; });
     await connect(); await page.locator('#dump').click();
     assert(await page.locator('#result').isHidden());
     await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('Backup failed:'), {timeout: 30000});
     assert(await page.locator('#result').isHidden());
     assert.equal(await page.locator('#binary').getAttribute('href'), null);
-    assert.match(await page.locator('#status').textContent(), /Verification mismatch/);
+    assert.match(await page.locator('#status').textContent(), /Verification mismatch at 0x035abc/);
+    assert.match(await page.locator('#log').textContent(), /matches read 1. Backup remains rejected/);
 
     // Cancel during capture and verify a new complete-download link is absent.
     await page.evaluate(() => { window.mockBridge = new FakeRP2040(); window.mockBridge.stayBusy = true; });
-    await connect(); await page.locator('#dump').click();
+    await connect('1500000'); await page.locator('#dump').click();
     await page.waitForFunction(() => window.mockBridge.blockRequests > 0);
+    assert.equal(await page.evaluate(() => window.mockBridge.baudRate), 1500000);
+    assert.equal(await page.evaluate(() => window.mockBridge.registers.get(0xb2)), 32);
     await page.locator('#cancel').click();
     await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('Cancelled.'));
     assert(await page.locator('#result').isHidden());

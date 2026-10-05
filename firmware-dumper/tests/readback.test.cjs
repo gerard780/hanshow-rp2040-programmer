@@ -2,14 +2,15 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const {encode, writePacket, decode, SerialIO, USBBridge, RP2040Reader, capture, flashSize} = require('../sws.js');
+const {encode, writePacket, decode, SerialIO, USBBridge, RP2040Reader, capture, flashSize, defaultBaud} = require('../sws.js');
 const {FakeRP2040} = require('./fake-rp2040.js');
 
-async function setup() {
+async function setup(baudRate = 921600) {
   const fake = new FakeRP2040();
   const bridge = new USBBridge(fake); await bridge.open();
+  await fake.open({baudRate});
   const io = new SerialIO(fake, 40);
-  const reader = new RP2040Reader(io, bridge);
+  const reader = new RP2040Reader(io, bridge, undefined, baudRate);
   // Use the real activation method, but shorten its CPU-stop window for tests.
   return {fake, bridge, io, reader};
 }
@@ -153,4 +154,62 @@ test('serial timeout and disconnect terminate pending reads and unlock both stre
   await assert.rejects(pending, /unplugged/);
   await finish(env);
   assert.equal(env.fake.readable.locked, false); assert.equal(env.fake.writable.locked, false);
+});
+
+
+test('capture timing and metadata follow selected baud; legacy defaults stay unchanged', async () => {
+  assert.equal(defaultBaud('1.3'), 921600);
+  assert.equal(defaultBaud('1.4'), 2000000);
+  assert.equal(defaultBaud('1.5'), 2000000);
+  for (const [baudRate, divisor] of [[921600, 52], [1500000, 32], [2000000, 24]]) {
+    const env = await setup(baudRate);
+    const logs = []; env.reader.log = message => logs.push(message);
+    try {
+      const result = await capture(env.reader, {activationMs: 100});
+      assert.equal(result.metadata.baudRate, baudRate);
+      assert.equal(result.metadata.divisor, divisor);
+      assert.equal(env.fake.registers.get(0xb2), divisor);
+      assert(logs.some(message => message.includes(`SWS divider ${divisor} (24 MHz`)));
+    } finally { await finish(env); }
+  }
+});
+
+test('reported 0x035000 block gives exact differing byte and remains rejected after a matching diagnostic read', async () => {
+  const env = await setup(2000000);
+  env.fake.corruptAtBlock = 129 + 0x35000 / 4096;
+  env.fake.corruptOffset = 0xabc;
+  const logs = []; env.reader.log = message => logs.push(message);
+  try {
+    await assert.rejects(capture(env.reader, {activationMs: 100, fullVerify: true}), /Verification mismatch at 0x035abc \(block 0x035000\)/);
+    assert(logs.some(message => message.includes('1/4096 bytes differ')));
+    assert(logs.some(message => message.includes('matches read 1. Backup remains rejected')));
+    assert.equal(env.fake.registers.get(0x6f), 0x22);
+  } finally { await finish(env); }
+});
+
+test('baud mismatch fails before calibration and releases the paired tag', async () => {
+  const env = await setup(2000000); env.fake.baudRate = 921600;
+  try {
+    await assert.rejects(capture(env.reader, {activationMs: 100}), /baud rate 921600 does not match selected 2000000/);
+    assert.equal(env.fake.blockRequests, 0);
+    assert.equal(env.fake.registers.get(0x6f), 0x22);
+  } finally { await finish(env); }
+});
+
+
+test('a diagnostic failure preserves rejection and a short first read cannot become a backup', async () => {
+  for (const mode of ['diagnostic', 'short']) {
+    const env = await setup();
+    try {
+      if (mode === 'diagnostic') {
+        env.fake.corruptAtBlock = 129; env.fake.failAtBlock = 130;
+        await assert.rejects(capture(env.reader, {activationMs: 100, fullVerify: true}), /Verification mismatch/);
+      } else {
+        const readFlash = env.reader.readFlash.bind(env.reader);
+        env.reader.readFlash = async (...args) => (await readFlash(...args)).subarray(1);
+        await assert.rejects(capture(env.reader, {activationMs: 100}), /Incomplete flash read/);
+      }
+      assert.equal(env.fake.registers.get(0x6f), 0x22);
+    } finally { await finish(env); }
+  }
 });

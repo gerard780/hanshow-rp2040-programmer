@@ -14,7 +14,7 @@
     section {background:#1a252b; padding:24px; border:1px solid #344249; border-radius:14px; margin:22px 0}
     .grid {display:grid; grid-template-columns:1fr 1fr; gap:24px} table {width:100%; border-collapse:collapse; font-size:14px}
     th,td {text-align:left; padding:7px 5px; border-bottom:1px solid #344249} th {color:#b7c9cc}
-    label {display:block; line-height:1.5; margin:12px 0} input[type=number] {width:110px; background:#10171b; border:1px solid #60767e; border-radius:5px; color:inherit; padding:8px; margin-left:10px}
+    label {display:block; line-height:1.5; margin:12px 0} input[type=number],select {width:110px; background:#10171b; border:1px solid #60767e; border-radius:5px; color:inherit; padding:8px; margin-left:10px}
     input[type=checkbox] {accent-color:#80e0cc; margin-right:8px} button,.download {font:inherit; border-radius:8px; padding:12px 17px; border:1px solid #657b83; color:inherit; background:#26383f; cursor:pointer; display:inline-block; text-decoration:none}
     button.primary {background:#80e0cc; color:#102621; border-color:#80e0cc; font-weight:650} button:disabled {opacity:.4; cursor:default}
     .actions {display:flex; flex-wrap:wrap; gap:10px; align-items:center} .device {font-size:14px; margin:10px 0 0; overflow-wrap:anywhere}
@@ -50,10 +50,11 @@
     <p>Choose the programmer, then its <strong>SWS readback</strong> serial port (first interface / <code>if00</code>). Close other flashers and serial monitors first.</p>
     <div class="actions"><button id="usb">Choose RP2040</button><button id="serial" disabled>Choose SWS port</button><button id="disconnect" disabled>Disconnect</button></div>
     <p class="device" id="device">No programmer connected.</p>
+    <label>Read speed <select id="baud"><option value="2000000">2 Mbaud</option><option value="1500000">1.5 Mbaud — fallback</option><option value="921600" selected>921600 baud — legacy</option></select></label>
     <label>Activation time (ms)<input id="activation" type="number" min="100" max="10000" step="100" value="3000"></label>
     <label><input id="reset" type="checkbox" checked>Use GP2 to reset the tag before capture</label>
     <label><input id="verify" type="checkbox" checked>Read the entire flash twice and require an exact match</label>
-    <p>Two full reads took about four minutes in previous RP2040 bench tests; browser timing may differ. With this option off, verification checks 256-byte samples every 64 KiB and at the end.</p>
+    <p>The v1.4/v1.5 bridge defaults to 2 Mbaud. Previous Python bench reads took about 30 seconds per 512 KiB pass at this rate; browser timing may differ. If verification fails, reconnect and select 1.5 Mbaud before choosing the serial port. With this option off, verification checks 256-byte samples every 64 KiB and at the end.</p>
   </section>
   <section aria-live="polite">
     <h2>3. Capture and download</h2>
@@ -63,6 +64,7 @@
     <p id="detail">The tag pauses during capture and is reset afterward. The dumper issues no flash erase, program or unlock commands.</p>
     <div id="result" hidden><p id="summary"></p><p id="hash"></p><div class="actions"><a id="binary" class="download">Download full flash (.bin)</a><a id="report" class="download">Download backup report (.json)</a></div></div>
   </section>
+  <p>Web dumper revision: 2026-10-05.2</p>
   <section><h2>Activity</h2><pre id="log" role="log"></pre><button id="save-log">Save activity log</button></section>
   <p>Supports TLSR825x chip ID 0x5562 and recognized flash IDs. Captures main flash address zero through the detected capacity; separate OTP/security registers are excluded. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/firmware-dumper/README.md">Details and troubleshooting</a>.</p>
 </main><script>
@@ -73,6 +75,7 @@
  */
 (function (root) {
   'use strict';
+  const revision = '2026-10-05.2';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const equal = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -89,6 +92,8 @@
     return out;
   }
   const stop = () => encode([0xff]);
+  const baudRates = [921600, 1500000, 2000000];
+  function defaultBaud(version) { return ['1.4', '1.5'].includes(version) ? 2000000 : 921600; }
   const header = (address, mode) => [0x5a, (address >> 16) & 255, (address >> 8) & 255, address & 255, mode];
   function writePacket(address, data) {
     const body = encode([...header(address, 0), ...data]);
@@ -199,7 +204,10 @@
   }
 
   class Reader {
-    constructor(io, log = () => {}) { this.io = io; this.log = log; }
+    constructor(io, log = () => {}, baudRate = 921600) {
+      if (!baudRates.includes(baudRate)) throw new Error('Unsupported SWS baud rate');
+      this.io = io; this.log = log; this.baudRate = baudRate;
+    }
     reg(address, data) { return this.io.send(writePacket(address, data)); }
     async read(address, count, signal) {
       await sleep(50); this.io.clear();
@@ -237,7 +245,7 @@
         await sleep(5);
       }
       await this.io.settle(); await this.io.send(stop()); await this.reg(0x602, [5]);
-      for (let divisor = Math.round(32000000 / 921600); divisor <= Math.round(96000000 / 921600); divisor++) {
+      for (let divisor = Math.round(32000000 / this.baudRate); divisor <= Math.round(96000000 / this.baudRate); divisor++) {
         check(signal); await this.io.settle();
         await this.reg(0xb2, [divisor]);
         try {
@@ -248,7 +256,7 @@
           if (ids[0][1] !== 0x62 || ids[0][2] !== 0x55) {
             throw new Error(`Unsupported chip ${hex(ids[0])}; this reader supports TLSR825x ID 0x5562`);
           }
-          this.log(`Chip ${hex(ids[0])}, SWS divider ${divisor}`);
+          this.log(`Chip ${hex(ids[0])}, initial SWS probe divider ${divisor}`);
           // Release flash deep power-down (0xAB); does not program flash.
           await this.reg(0x0d, [0]); await this.reg(0x0c, [0xab, 1]); await this.reg(0x0d, [1]);
           await sleep(1);
@@ -301,7 +309,7 @@
       if (data.getUint32(0, true) !== 0x31505348) throw new Error('Unexpected RP2040 firmware');
       const version = data.getUint32(4, true);
       if (![0x10003, 0x10004, 0x10005].includes(version)) throw new Error('Install a supported RP2040 bridge v1.3, v1.4 or v1.5 UF2 for browser readback');
-      return {version: `${version >>> 16}.${version & 0xffff}`, flags: data.getUint32(8, true), tx: data.getUint32(24, true), faults: data.getUint32(28, true)};
+      return {version: `${version >>> 16}.${version & 0xffff}`, flags: data.getUint32(8, true), tx: data.getUint32(24, true), faults: data.getUint32(28, true), baudRate: data.getUint32(12, true)};
     }
     async open() {
       if (this.device.vendorId !== 0xcafe || this.device.productId !== 0x4012) throw new Error('Select the Hanshow RP2040 bridge');
@@ -346,7 +354,7 @@
   }
 
   class RP2040Reader extends Reader {
-    constructor(io, bridge, log) { super(io, log); this.bridge = bridge; this.blockSize = 4096; }
+    constructor(io, bridge, log, baudRate = 921600) { super(io, log, baudRate); this.bridge = bridge; this.blockSize = 4096; }
     async activate(options) {
       // Verify that the separately selected serial port belongs to this bridge's
       // SWS interface before stopping a CPU. Wrong UART/board selections fail.
@@ -356,11 +364,14 @@
       const after = await this.bridge.status();
       if (((after.tx - before.tx) >>> 0) !== 10) throw new Error('Serial and USB selections do not match. Select this RP2040’s SWS port (if00), close other tools and retry');
       this.paired = true;
+      if (after.baudRate !== this.baudRate) throw new Error(`RP2040 baud rate ${after.baudRate} does not match selected ${this.baudRate}`);
       const identity = await super.activate(options);
       // Same 24 MHz SWS rate used in the verified Zero block benchmarks.
-      await this.reg(0xb2, [52]);
-      if (!equal(await this.read(0xb2, 1, options.signal), Uint8Array.of(52))) throw new Error('RP2040 SWS divider verification failed');
-      identity.divisor = 52;
+      const divisor = Math.round(48000000 / this.baudRate);
+      await this.reg(0xb2, [divisor]);
+      if (!equal(await this.read(0xb2, 1, options.signal), Uint8Array.of(divisor))) throw new Error('RP2040 SWS divider verification failed');
+      identity.divisor = divisor;
+      this.log(`Capture timing: ${this.baudRate.toLocaleString()} baud, SWS divider ${divisor} (24 MHz clock setting).`);
       this.baseline = await this.bridge.status();
       this.transportDetails = {programmer: 'Hanshow RP2040-Zero', bridgeVersion: this.baseline.version,
         bridgeSerial: this.bridge.device.serialNumber, mode: 'native 4096-byte USB blocks',
@@ -370,7 +381,9 @@
     async blockRead(address, count, signal) {
       await this.io.send(encode(header(address, 0x80)));
       try { return await this.bridge.block(count, signal); }
-      finally { await this.io.settle(); await this.io.send(stop()); }
+      // Native completion consumes the last reply's end cell; unlike legacy
+      // sampled replies it leaves no CDC payload to drain. Match the Python path.
+      finally { await this.io.send(stop()); }
     }
     readFlash(address, count, signal) {
       if (!Number.isInteger(address) || address < 0 || address + count > 0x1000000 || count < 1 || count > 4096) throw new Error('Invalid RP2040 flash read range');
@@ -402,7 +415,9 @@
       for (let address = 0; address < size; address += blockSize) {
         check(signal);
         const count = Math.min(blockSize, size - address);
-        data.set(await reader.readFlash(address, count, signal), address);
+        const block = await reader.readFlash(address, count, signal);
+        if (block.length !== count) throw new Error(`Incomplete flash read at 0x${address.toString(16)} (${block.length}/${count} bytes)`);
+        data.set(block, address);
         progress({phase: 'Reading', done: address + count, total: size});
       }
       const samples = [];
@@ -417,14 +432,29 @@
         const address = fullVerify ? done : samples[done / 256];
         const count = Math.min(verifyBlockSize, verificationTotal - done);
         const fresh = await reader.readFlash(address, count, signal);
-        if (!equal(fresh, data.subarray(address, address + count))) throw new Error(`Verification mismatch at 0x${address.toString(16).padStart(6, '0')}; no complete backup will be offered`);
+        const first = data.subarray(address, address + count);
+        if (fresh.length !== count) throw new Error(`Incomplete verification read (${fresh.length}/${count} bytes)`);
+        if (!equal(fresh, first)) {
+          const offsets = [];
+          for (let i = 0; i < count; i++) if (first[i] !== fresh[i]) offsets.push(i);
+          const where = value => `0x${value.toString(16).padStart(6, '0')}`;
+          reader.log(`Verification block ${where(address)}: ${offsets.length}/${count} bytes differ. First differences (read 1 / read 2): ${offsets.slice(0, 4).map(i => `${where(address + i)} ${hex(first.subarray(i, i + 1))}/${hex(fresh.subarray(i, i + 1))}`).join(', ')}.`);
+          // One diagnostic read explains repeatability, but never repairs or
+          // accepts a capture after its two required reads disagreed.
+          try {
+            check(signal);
+            const diagnostic = await reader.readFlash(address, count, signal);
+            reader.log(`Diagnostic block reread: ${equal(diagnostic, first) ? 'matches read 1' : equal(diagnostic, fresh) ? 'matches read 2' : 'matches neither read'}. Backup remains rejected.`);
+          } catch (error) { reader.log(`Diagnostic block reread failed: ${error.message}. Backup remains rejected.`); }
+          throw new Error(`Verification mismatch at ${where(address + offsets[0])} (block ${where(address)}); no complete backup will be offered`);
+        }
         progress({phase: 'Verifying', done: done + count, total: verificationTotal});
       }
       check(signal);
       if (reader.verifyTransport) await reader.verifyTransport();
       result = {data, metadata: {
-        format: 'TLSR825x raw full flash', startAddress: 0, bytes: size,
-        ...identity, jedecId: hex(jedec), baudRate: 921600, started,
+        webDumperRevision: revision, format: 'TLSR825x raw full flash', startAddress: 0, bytes: size,
+        ...identity, jedecId: hex(jedec), baudRate: reader.baudRate, started,
         captured: new Date().toISOString(), verification: fullVerify ? 'two complete matching reads' : 'sample readback matched',
         sampleAddresses: fullVerify ? [] : samples,
         transport: reader.transportDetails,
@@ -438,7 +468,7 @@
     result.metadata.cleanupWarnings = warnings;
     return result;
   }
-  const api = {encode, writePacket, decode, SerialIO, Reader, USBBridge, RP2040Reader, capture, flashSize, hex, equal};
+  const api = {encode, writePacket, decode, SerialIO, Reader, USBBridge, RP2040Reader, capture, flashSize, hex, equal, defaultBaud, revision};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FirmwareDump = api;
 })(globalThis);
@@ -447,8 +477,9 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
-  const {SerialIO, USBBridge, RP2040Reader, capture, hex} = FirmwareDump;
+  const {SerialIO, USBBridge, RP2040Reader, capture, hex, defaultBaud, revision} = FirmwareDump;
   let bridge = null, io = null, controller = null, busy = false;
+  let baudRate = 921600;
   let usbLabel = '', serialLabel = '', urls = [], started = 0, phase = '', phaseStarted = 0;
   const supported = isSecureContext && !!navigator.serial && !!navigator.usb && !!crypto.subtle;
   function log(message) {
@@ -457,6 +488,7 @@
   }
   function render() {
     $('usb').disabled = busy || !supported || !!bridge;
+    $('baud').disabled = busy || !!io;
     $('serial').disabled = busy || !bridge || !!io;
     $('disconnect').disabled = busy || (!bridge && !io);
     $('dump').disabled = busy || !bridge || !io;
@@ -489,6 +521,7 @@
       const device = await navigator.usb.requestDevice({filters: [{vendorId: 0xcafe, productId: 0x4012}]});
       bridge = new USBBridge(device);
       const info = await bridge.open();
+      $('baud').value = String(defaultBaud(info.version));
       usbLabel = `RP2040 v${info.version} (${device.serialNumber || 'no serial ID'})`;
       log(`Connected ${usbLabel}. Select its SWS serial port next.`);
       $('status').textContent = 'Choose the SWS serial port.';
@@ -501,11 +534,12 @@
     busy = true; render(); let port;
     try {
       port = await navigator.serial.requestPort({filters: [{usbVendorId: 0xcafe, usbProductId: 0x4012}]});
-      await port.open({baudRate: 921600, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none', bufferSize: 8192});
+      baudRate = Number($('baud').value);
+      await port.open({baudRate, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none', bufferSize: 8192});
       // DTR true enables the bridge SWS engine. RTS false releases reset.
       await port.setSignals({dataTerminalReady: true, requestToSend: false});
-      io = new SerialIO(port); serialLabel = 'Serial port open at 921600 baud';
-      log('Serial port connected. Its association with this bridge will be checked before capture.');
+      io = new SerialIO(port); serialLabel = `Serial port open at ${baudRate.toLocaleString()} baud`;
+      log(`Serial port connected at ${baudRate.toLocaleString()} baud. Its association with this bridge will be checked before capture.`);
       $('status').textContent = 'Ready to dump full flash.';
     } catch (error) {
       log(`Serial: ${error.message}`);
@@ -538,10 +572,10 @@
     $('progress').value = 0; $('status').textContent = 'Identifying tag and flash…';
     started = performance.now(); phase = '';
     const fullVerify = $('verify').checked;
-    log(`Starting full-flash backup. Verification: ${fullVerify ? 'two full reads' : 'sample readback'}.`);
+    log(`Web dumper ${revision}. Starting full-flash backup. Verification: ${fullVerify ? 'two full reads' : 'sample readback'}.`);
     let result = null, failure = null;
     try {
-      result = await capture(new RP2040Reader(io, bridge, log), {
+      result = await capture(new RP2040Reader(io, bridge, log, baudRate), {
         signal: controller.signal, activationMs, pulseReset: $('reset').checked, fullVerify, progress,
       });
       const digest = hex(new Uint8Array(await crypto.subtle.digest('SHA-256', result.data)));

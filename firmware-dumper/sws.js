@@ -4,6 +4,7 @@
  */
 (function (root) {
   'use strict';
+  const revision = '2026-10-05.2';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const equal = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -20,6 +21,8 @@
     return out;
   }
   const stop = () => encode([0xff]);
+  const baudRates = [921600, 1500000, 2000000];
+  function defaultBaud(version) { return ['1.4', '1.5'].includes(version) ? 2000000 : 921600; }
   const header = (address, mode) => [0x5a, (address >> 16) & 255, (address >> 8) & 255, address & 255, mode];
   function writePacket(address, data) {
     const body = encode([...header(address, 0), ...data]);
@@ -130,7 +133,10 @@
   }
 
   class Reader {
-    constructor(io, log = () => {}) { this.io = io; this.log = log; }
+    constructor(io, log = () => {}, baudRate = 921600) {
+      if (!baudRates.includes(baudRate)) throw new Error('Unsupported SWS baud rate');
+      this.io = io; this.log = log; this.baudRate = baudRate;
+    }
     reg(address, data) { return this.io.send(writePacket(address, data)); }
     async read(address, count, signal) {
       await sleep(50); this.io.clear();
@@ -168,7 +174,7 @@
         await sleep(5);
       }
       await this.io.settle(); await this.io.send(stop()); await this.reg(0x602, [5]);
-      for (let divisor = Math.round(32000000 / 921600); divisor <= Math.round(96000000 / 921600); divisor++) {
+      for (let divisor = Math.round(32000000 / this.baudRate); divisor <= Math.round(96000000 / this.baudRate); divisor++) {
         check(signal); await this.io.settle();
         await this.reg(0xb2, [divisor]);
         try {
@@ -179,7 +185,7 @@
           if (ids[0][1] !== 0x62 || ids[0][2] !== 0x55) {
             throw new Error(`Unsupported chip ${hex(ids[0])}; this reader supports TLSR825x ID 0x5562`);
           }
-          this.log(`Chip ${hex(ids[0])}, SWS divider ${divisor}`);
+          this.log(`Chip ${hex(ids[0])}, initial SWS probe divider ${divisor}`);
           // Release flash deep power-down (0xAB); does not program flash.
           await this.reg(0x0d, [0]); await this.reg(0x0c, [0xab, 1]); await this.reg(0x0d, [1]);
           await sleep(1);
@@ -232,7 +238,7 @@
       if (data.getUint32(0, true) !== 0x31505348) throw new Error('Unexpected RP2040 firmware');
       const version = data.getUint32(4, true);
       if (![0x10003, 0x10004, 0x10005].includes(version)) throw new Error('Install a supported RP2040 bridge v1.3, v1.4 or v1.5 UF2 for browser readback');
-      return {version: `${version >>> 16}.${version & 0xffff}`, flags: data.getUint32(8, true), tx: data.getUint32(24, true), faults: data.getUint32(28, true)};
+      return {version: `${version >>> 16}.${version & 0xffff}`, flags: data.getUint32(8, true), tx: data.getUint32(24, true), faults: data.getUint32(28, true), baudRate: data.getUint32(12, true)};
     }
     async open() {
       if (this.device.vendorId !== 0xcafe || this.device.productId !== 0x4012) throw new Error('Select the Hanshow RP2040 bridge');
@@ -277,7 +283,7 @@
   }
 
   class RP2040Reader extends Reader {
-    constructor(io, bridge, log) { super(io, log); this.bridge = bridge; this.blockSize = 4096; }
+    constructor(io, bridge, log, baudRate = 921600) { super(io, log, baudRate); this.bridge = bridge; this.blockSize = 4096; }
     async activate(options) {
       // Verify that the separately selected serial port belongs to this bridge's
       // SWS interface before stopping a CPU. Wrong UART/board selections fail.
@@ -287,11 +293,14 @@
       const after = await this.bridge.status();
       if (((after.tx - before.tx) >>> 0) !== 10) throw new Error('Serial and USB selections do not match. Select this RP2040’s SWS port (if00), close other tools and retry');
       this.paired = true;
+      if (after.baudRate !== this.baudRate) throw new Error(`RP2040 baud rate ${after.baudRate} does not match selected ${this.baudRate}`);
       const identity = await super.activate(options);
       // Same 24 MHz SWS rate used in the verified Zero block benchmarks.
-      await this.reg(0xb2, [52]);
-      if (!equal(await this.read(0xb2, 1, options.signal), Uint8Array.of(52))) throw new Error('RP2040 SWS divider verification failed');
-      identity.divisor = 52;
+      const divisor = Math.round(48000000 / this.baudRate);
+      await this.reg(0xb2, [divisor]);
+      if (!equal(await this.read(0xb2, 1, options.signal), Uint8Array.of(divisor))) throw new Error('RP2040 SWS divider verification failed');
+      identity.divisor = divisor;
+      this.log(`Capture timing: ${this.baudRate.toLocaleString()} baud, SWS divider ${divisor} (24 MHz clock setting).`);
       this.baseline = await this.bridge.status();
       this.transportDetails = {programmer: 'Hanshow RP2040-Zero', bridgeVersion: this.baseline.version,
         bridgeSerial: this.bridge.device.serialNumber, mode: 'native 4096-byte USB blocks',
@@ -301,7 +310,9 @@
     async blockRead(address, count, signal) {
       await this.io.send(encode(header(address, 0x80)));
       try { return await this.bridge.block(count, signal); }
-      finally { await this.io.settle(); await this.io.send(stop()); }
+      // Native completion consumes the last reply's end cell; unlike legacy
+      // sampled replies it leaves no CDC payload to drain. Match the Python path.
+      finally { await this.io.send(stop()); }
     }
     readFlash(address, count, signal) {
       if (!Number.isInteger(address) || address < 0 || address + count > 0x1000000 || count < 1 || count > 4096) throw new Error('Invalid RP2040 flash read range');
@@ -333,7 +344,9 @@
       for (let address = 0; address < size; address += blockSize) {
         check(signal);
         const count = Math.min(blockSize, size - address);
-        data.set(await reader.readFlash(address, count, signal), address);
+        const block = await reader.readFlash(address, count, signal);
+        if (block.length !== count) throw new Error(`Incomplete flash read at 0x${address.toString(16)} (${block.length}/${count} bytes)`);
+        data.set(block, address);
         progress({phase: 'Reading', done: address + count, total: size});
       }
       const samples = [];
@@ -348,14 +361,29 @@
         const address = fullVerify ? done : samples[done / 256];
         const count = Math.min(verifyBlockSize, verificationTotal - done);
         const fresh = await reader.readFlash(address, count, signal);
-        if (!equal(fresh, data.subarray(address, address + count))) throw new Error(`Verification mismatch at 0x${address.toString(16).padStart(6, '0')}; no complete backup will be offered`);
+        const first = data.subarray(address, address + count);
+        if (fresh.length !== count) throw new Error(`Incomplete verification read (${fresh.length}/${count} bytes)`);
+        if (!equal(fresh, first)) {
+          const offsets = [];
+          for (let i = 0; i < count; i++) if (first[i] !== fresh[i]) offsets.push(i);
+          const where = value => `0x${value.toString(16).padStart(6, '0')}`;
+          reader.log(`Verification block ${where(address)}: ${offsets.length}/${count} bytes differ. First differences (read 1 / read 2): ${offsets.slice(0, 4).map(i => `${where(address + i)} ${hex(first.subarray(i, i + 1))}/${hex(fresh.subarray(i, i + 1))}`).join(', ')}.`);
+          // One diagnostic read explains repeatability, but never repairs or
+          // accepts a capture after its two required reads disagreed.
+          try {
+            check(signal);
+            const diagnostic = await reader.readFlash(address, count, signal);
+            reader.log(`Diagnostic block reread: ${equal(diagnostic, first) ? 'matches read 1' : equal(diagnostic, fresh) ? 'matches read 2' : 'matches neither read'}. Backup remains rejected.`);
+          } catch (error) { reader.log(`Diagnostic block reread failed: ${error.message}. Backup remains rejected.`); }
+          throw new Error(`Verification mismatch at ${where(address + offsets[0])} (block ${where(address)}); no complete backup will be offered`);
+        }
         progress({phase: 'Verifying', done: done + count, total: verificationTotal});
       }
       check(signal);
       if (reader.verifyTransport) await reader.verifyTransport();
       result = {data, metadata: {
-        format: 'TLSR825x raw full flash', startAddress: 0, bytes: size,
-        ...identity, jedecId: hex(jedec), baudRate: 921600, started,
+        webDumperRevision: revision, format: 'TLSR825x raw full flash', startAddress: 0, bytes: size,
+        ...identity, jedecId: hex(jedec), baudRate: reader.baudRate, started,
         captured: new Date().toISOString(), verification: fullVerify ? 'two complete matching reads' : 'sample readback matched',
         sampleAddresses: fullVerify ? [] : samples,
         transport: reader.transportDetails,
@@ -369,7 +397,7 @@
     result.metadata.cleanupWarnings = warnings;
     return result;
   }
-  const api = {encode, writePacket, decode, SerialIO, Reader, USBBridge, RP2040Reader, capture, flashSize, hex, equal};
+  const api = {encode, writePacket, decode, SerialIO, Reader, USBBridge, RP2040Reader, capture, flashSize, hex, equal, defaultBaud, revision};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FirmwareDump = api;
 })(globalThis);

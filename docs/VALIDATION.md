@@ -61,6 +61,27 @@ that the distributed UF2 reconstructs the built firmware.
 
 Bench v1.4 results, including the 2 Mbaud sweep and original-byte sector
 rewrites, are summarized in [development status](DEVELOPMENT-STATUS.md).
-The combined v1.5 UF2, physical browser capture, 826x path, additional specimens
+The combined v1.5 UF2, successful physical browser capture, 826x path, additional specimens
 and full-image installation still need physical validation. Software tests use
 simulated data and do not change a connected tag.
+
+## Browser revision 2026-10-05.2
+
+Two physical browser attempts with bench v1.4 at 921600 baud failed full
+verification in the 4 KiB block starting at `0x035000`. The earlier error
+reported the block start, not the exact differing byte. The cause remains
+unconfirmed; a fault-free bridge status alone does not establish correct data.
+
+This revision makes baud and divider calibration agree with the Python
+reader: v1.4/v1.5 default to 2 Mbaud, with explicit 1.5 Mbaud and 921600 options.
+It removes the browser's 25 ms CDC drain after native block completion,
+matching Python's completed-block path. It verifies the requested bridge baud,
+logs the final divider and reports exact mismatch addresses/counts/byte pairs.
+A single diagnostic reread reports whether the failed block matches either
+pass; it never makes a failed backup available for download.
+
+Simulated transport and Chromium tests pass for selected baud/divider settings,
+full-image downloads, a mismatch inside the reported `0x035000` block,
+cancellation, cleanup and standalone HTML operation. The revised browser still
+needs physical validation on the affected tag; these checks do not establish
+that the reported failure is resolved.

@@ -9,7 +9,7 @@
       this.frame = []; this.readAddress = null; this.spiAddress = 0; this.spiCommand = 0;
       this.commands = []; this.tx = 0; this.faults = 0; this.resets = 0; this.signals = [];
       this.blockRequests = 0; this.blockState = 0; this.blockCount = 0; this.cancelCount = 0;
-      this.corruptAtBlock = -1; this.failAtBlock = -1; this.failUSBRequest = -1;
+      this.baudRate = 921600; this.corruptOffset = 0; this.corruptAtBlock = -1; this.failAtBlock = -1; this.failUSBRequest = -1;
       this.shortPayload = false; this.stayBusy = false; this.serialClosed = false;
       this.vendorId = 0xcafe; this.productId = 0x4012; this.serialNumber = 'FAKE-ZERO'; this.opened = false;
       this.configuration = {configurationValue: 1}; this.version = 0x10005; this.addressWidth = 2;
@@ -67,7 +67,7 @@
     }
     async setSignals(value) { this.signals.push(value); }
     async close() { this.serialClosed = true; this.opened = false; }
-    async open() { this.opened = true; }
+    async open(options) { this.opened = true; if (options) this.baudRate = options.baudRate; }
     async selectConfiguration() {}
     async claimInterface(value) { if (value !== 4) throw new Error('Wrong USB interface'); this.claimed = value; }
     async controlTransferOut(setup) {
@@ -91,13 +91,13 @@
       if (setup.request === 0x21) { out.setUint32(0, this.addressWidth, true); }
       else if (setup.request === 1) {
         out.setUint32(0, 0x31505348, true); out.setUint32(4, this.version, true);
-        out.setUint32(8, 1, true); out.setUint32(24, this.tx, true); out.setUint32(28, this.faults, true);
+        out.setUint32(8, 1, true); out.setUint32(12, this.baudRate, true); out.setUint32(24, this.tx, true); out.setUint32(28, this.faults, true);
       } else if (setup.request === 0x11) {
         out.setUint32(0, this.stayBusy ? 1 : this.blockState, true); out.setUint32(4, this.blockCount, true);
       } else if (setup.request === 0x13) {
         const data = new Uint8Array(out.buffer);
         data.set(this.memory.subarray(this.spiAddress, this.spiAddress + length)); this.spiAddress += length;
-        if (this.blockRequests === this.corruptAtBlock) data[0] ^= 1;
+        if (this.blockRequests === this.corruptAtBlock) data[this.corruptOffset] ^= 1;
         if (this.shortPayload) return {status: 'ok', data: new DataView(out.buffer, 0, length - 1)};
       } else throw new Error('Unexpected control input');
       return {status: 'ok', data: out};

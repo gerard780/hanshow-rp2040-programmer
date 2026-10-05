@@ -15,8 +15,8 @@ backend. The known Nebular chip/flash path has bench evidence. Other chips and
 the 826x framing path remain experimental until tested on physical hardware.
 
 The v1.5 source and UF2 combine the faster PIO transport, the browser USB
-interface and the public two-/three-byte SWS addressing. Python reads default
-to **2 Mbaud** on v1.4/v1.5; use `--baud 1500000` for the explicit fallback.
+interface and the public two-/three-byte SWS addressing. Python and browser reads default
+to **2 Mbaud** on v1.4/v1.5; use `--baud 1500000` or the browser’s 1.5 Mbaud selector for the explicit fallback.
 Older bridges keep the 921600 default. Matching independent captures are
 required: the earlier 2.5/3 Mbaud experiments produced intermittent errors.
 The measured 30-second reads belong to the bench v1.4 build on one specimen;

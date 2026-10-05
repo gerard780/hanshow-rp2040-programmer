@@ -53,8 +53,12 @@ The builder verifies the UF2 against its manifest and produces identical
 4. Save both the `.bin` and `.json` report. Matching complete reads and successful
    cleanup are required before the complete-backup downloads become available.
 
-The browser uses **921600 baud**. Use [readback.py](../readback.py) for the
-2 Mbaud default, 1.5 Mbaud fallback and broader legacy backend probing.
+The browser defaults to **2 Mbaud on v1.4/v1.5**, matching the Python reader,
+and 921600 baud on v1.3. For a verification failure, reconnect and select
+**1.5 Mbaud** before choosing the serial port; 921600 is also available.
+The verified 24 MHz clock setting gives SWS dividers 24, 32 and 52 respectively.
+The activity log and downloaded report record the actual capture baud/divider.
+Use [readback.py](../readback.py) for broader legacy backend probing.
 Browser capture with the combined v1.5 build still needs physical validation.
 The software tests use simulated USB/serial data, not a connected tag.
 
@@ -81,7 +85,11 @@ identifies captured bytes; it does not establish original OEM provenance.
 
 Cancel stops at a bounded USB request, cancels native capture, releases SPI/FIFO,
 attempts CPU reset and releases GP2. Failed/cancelled captures produce no full
-backup download. A physically disconnected USB link can prevent cleanup; the
+backup download. Mismatch logs include the exact first differing address,
+number of differing bytes in the block and the first four byte pairs. One
+additional read of that block reports whether the disagreement is repeatable;
+the failed capture remains rejected even if that diagnostic read matches.
+A physically disconnected USB link can prevent cleanup; the
 log reports this and the tag may need a power cycle. Select both devices again
 for another attempt. The browser issues SPI reads, JEDEC identification and
 wake commands only; it has no flash erase/program/unlock/status-write path.
