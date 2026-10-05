@@ -5,3 +5,11 @@ __pycache__/
 factory-backup*/
 private/
 *.zip
+
+# Keep unreviewed hardware designs private.
+hardware/as-built/
+*.kicad_sch
+*.kicad_pcb
+*.kicad_pro
+*.kicad_sym
+*.kicad_mod
