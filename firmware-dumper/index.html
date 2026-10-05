@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tag firmware backup · RP2040</title>
+  <style>
+    :root {color-scheme:dark; font-family:system-ui,sans-serif; background:#10171b; color:#e8f0f1}
+    * {box-sizing:border-box} body {margin:0; padding:40px 20px} main {max-width:860px; margin:auto}
+    h1 {font-size:clamp(28px,5vw,42px); margin:10px 0} h2 {font-size:19px; margin-top:0}
+    p {line-height:1.6; color:#b7c9cc} a {color:#80e0cc} .eyebrow {color:#80e0cc; font-size:12px; letter-spacing:.14em}
+    section {background:#1a252b; padding:24px; border:1px solid #344249; border-radius:14px; margin:22px 0}
+    .grid {display:grid; grid-template-columns:1fr 1fr; gap:24px} table {width:100%; border-collapse:collapse; font-size:14px}
+    th,td {text-align:left; padding:7px 5px; border-bottom:1px solid #344249} th {color:#b7c9cc}
+    label {display:block; line-height:1.5; margin:12px 0} input[type=number] {width:110px; background:#10171b; border:1px solid #60767e; border-radius:5px; color:inherit; padding:8px; margin-left:10px}
+    input[type=checkbox] {accent-color:#80e0cc; margin-right:8px} button,.download {font:inherit; border-radius:8px; padding:12px 17px; border:1px solid #657b83; color:inherit; background:#26383f; cursor:pointer; display:inline-block; text-decoration:none}
+    button.primary {background:#80e0cc; color:#102621; border-color:#80e0cc; font-weight:650} button:disabled {opacity:.4; cursor:default}
+    .actions {display:flex; flex-wrap:wrap; gap:10px; align-items:center} .device {font-size:14px; margin:10px 0 0; overflow-wrap:anywhere}
+    progress {width:100%; height:18px; accent-color:#80e0cc; margin-top:15px} #status {font-size:18px; margin:0; color:#e8f0f1}
+    #detail {margin-bottom:0; font-size:14px} #log {white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.6; max-height:260px; overflow:auto}
+    #hash {font-size:13px; overflow-wrap:anywhere} .notice {border-left:3px solid #e5ba76; padding-left:14px} [hidden] {display:none !important}
+    @media(max-width:650px) {.grid {grid-template-columns:1fr} body {padding:22px 14px} section {padding:18px}}
+  </style>
+</head>
+<body><main>
+  <div class="eyebrow">OPENEPAPERLINK · RP2040-ZERO</div>
+  <h1>Back up the entire tag.</h1>
+  <p>Download every byte of the tag’s main flash, including firmware, settings and calibration data. Everything runs locally in your browser.</p>
+  <p id="compatibility" class="notice" hidden></p>
+  <section class="grid">
+    <div>
+      <h2>1. Prepare the programmer</h2>
+      <p>Install <a href="../dist/hanshow_pio_bridge.uf2" download>RP2040 bridge v1.5 UF2</a> using BOOTSEL, then reconnect normally. The tag needs no firmware update.</p>
+      <p>Power the tag from 3.3 V with its batteries removed. Use short leads and a common ground.</p>
+      <p><a href="../README.md">Full wiring and firmware instructions</a></p>
+    </div>
+    <div>
+      <h2>Wire the tag to the Zero</h2>
+      <table><thead><tr><th>RP2040 GPIO</th><th>Tag pad</th></tr></thead><tbody>
+        <tr><td>GP0 through 1 kΩ</td><td>SWS</td></tr><tr><td>GP1 directly</td><td>SWS</td></tr>
+        <tr><td>GP2</td><td>RST</td></tr><tr><td>3V3</td><td>VCC</td></tr><tr><td>GND</td><td>GND</td></tr>
+      </tbody></table>
+      <p>GP4/GP5 UART wires are optional for backup.</p>
+    </div>
+  </section>
+  <section>
+    <h2>2. Connect the RP2040</h2>
+    <p>Choose the programmer, then its <strong>SWS readback</strong> serial port (first interface / <code>if00</code>). Close other flashers and serial monitors first.</p>
+    <div class="actions"><button id="usb">Choose RP2040</button><button id="serial" disabled>Choose SWS port</button><button id="disconnect" disabled>Disconnect</button></div>
+    <p class="device" id="device">No programmer connected.</p>
+    <label>Activation time (ms)<input id="activation" type="number" min="100" max="10000" step="100" value="3000"></label>
+    <label><input id="reset" type="checkbox" checked>Use GP2 to reset the tag before capture</label>
+    <label><input id="verify" type="checkbox" checked>Read the entire flash twice and require an exact match</label>
+    <p>Two full reads took about four minutes in previous RP2040 bench tests; browser timing may differ. With this option off, verification checks 256-byte samples every 64 KiB and at the end.</p>
+  </section>
+  <section aria-live="polite">
+    <h2>3. Capture and download</h2>
+    <div class="actions"><button class="primary" id="dump" disabled>Dump full flash</button><button id="cancel" disabled>Cancel</button></div>
+    <p id="status" style="margin-top:20px">Ready when you connect the programmer.</p>
+    <progress id="progress" max="1" value="0" aria-label="Capture progress"></progress>
+    <p id="detail">The tag pauses during capture and is reset afterward. The dumper issues no flash erase, program or unlock commands.</p>
+    <div id="result" hidden><p id="summary"></p><p id="hash"></p><div class="actions"><a id="binary" class="download">Download full flash (.bin)</a><a id="report" class="download">Download backup report (.json)</a></div></div>
+  </section>
+  <section><h2>Activity</h2><pre id="log" role="log"></pre><button id="save-log">Save activity log</button></section>
+  <p>Supports TLSR825x chip ID 0x5562 and recognized flash IDs. Captures main flash address zero through the detected capacity; separate OTP/security registers are excluded. <a href="README.md">Details and troubleshooting</a>.</p>
+</main><script src="sws.js"></script><script src="app.js"></script></body></html>

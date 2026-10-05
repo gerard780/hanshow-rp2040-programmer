@@ -27,6 +27,11 @@ static bool boot_requested;
 static uint tx_offset, rx_offset, reply_offset, request_offset;
 static uint trace_offset, trace_dma;
 static uint32_t trace_buffer[256];
+// Keep the longer reply program beside the tracer on PIO1. PIO0 retains the
+// UART command/echo programs and the request pulse. GP1 switches mux when the
+// receiver changes; GP0 stays on PIO0 throughout.
+enum { REPLY_SM = 1 };
+static bool native_rx_active, native_tx_active;
 
 static void trace_start(void) {
     pio_sm_set_enabled(pio1, 0, false);
@@ -51,10 +56,10 @@ static uint8_t encoded_frame[10];
 static uint frame_used, header_left;
 static uint32_t frame_history[128], frame_index;
 static bool sws_read_mode, reply_pending, reply_ready;
-// Legacy 825x/827x-style SWS uses 3 address bytes; 826x uses 2.
+// Legacy 825x/827x uses 3 address bytes; 826x uses 2.
 static volatile uint32_t sws_address_bytes = 3;
 static uint8_t reply_byte;
-static uint64_t reply_deadline, reply_settle;
+static uint64_t reply_deadline;
 enum { BLOCK_IDLE, BLOCK_BUSY, BLOCK_DONE, BLOCK_ERROR, BLOCK_CAPACITY = 4096 };
 static uint8_t block_buffer[BLOCK_CAPACITY];
 // Core 0 publishes a count before BUSY; core 1 publishes data before DONE.
@@ -101,6 +106,8 @@ static void release_pin(uint pin) {
 }
 
 static void sws_uart_receiver(uint32_t baud) {
+    pio_sm_set_enabled(pio1, REPLY_SM, false);
+    native_rx_active = false;
     pio_sm_set_enabled(pio0, RX_SM, false);
     pio_sm_config rx = bridge_rx_program_get_default_config(rx_offset);
     sm_config_set_in_pins(&rx, SWS_RX);
@@ -117,14 +124,24 @@ static void sws_uart_receiver(uint32_t baud) {
 
 static void sws_reply_receiver(void) {
     pio_sm_set_enabled(pio0, RX_SM, false);
+    if (native_rx_active) {
+        // The previous reply has been consumed and this machine is parked.
+        // Jump to its entry; the next eight shifts replace the previous byte.
+        pio_sm_exec(pio1, REPLY_SM, pio_encode_jmp(reply_offset));
+        return;
+    }
+    pio_sm_set_enabled(pio1, REPLY_SM, false);
     pio_sm_config rx = swire_reply_program_get_default_config(reply_offset);
     sm_config_set_in_pins(&rx, SWS_RX);
     sm_config_set_jmp_pin(&rx, SWS_RX);
     sm_config_set_in_shift(&rx, false, false, 32);
     sm_config_set_fifo_join(&rx, PIO_FIFO_JOIN_RX);
     // Run at the system clock: decoding depends on pulse ratio, not baud rate.
-    pio_sm_init(pio0, RX_SM, reply_offset, &rx);
-    pio_sm_set_enabled(pio0, RX_SM, true);
+    pio_sm_init(pio1, REPLY_SM, reply_offset, &rx);
+    pio_sm_set_consecutive_pindirs(pio1, REPLY_SM, SWS_RX, 1, false);
+    pio_gpio_init(pio1, SWS_RX);
+    pio_sm_set_enabled(pio1, REPLY_SM, true);
+    native_rx_active = true;
 }
 
 static void sws_track_byte(uint8_t byte) {
@@ -152,6 +169,7 @@ static void sws_track_byte(uint8_t byte) {
 }
 
 static void sws_uart_transmitter(uint32_t baud) {
+    native_tx_active = false;
     pio_sm_set_enabled(pio0, TX_SM, false);
     pio_sm_config tx = bridge_tx_program_get_default_config(tx_offset);
     sm_config_set_out_shift(&tx, true, false, 32);
@@ -170,14 +188,20 @@ static void sws_uart_transmitter(uint32_t baud) {
     pio_sm_set_enabled(pio0, TX_SM, true);
 }
 
-static void sws_request_pulse(void) {
+static void sws_request_pulse(uint32_t baud) {
+    if (native_tx_active) {
+        pio_sm_exec(pio0, TX_SM, pio_encode_jmp(request_offset));
+        return;
+    }
     gpio_set_drive_strength(SWS_TX, GPIO_DRIVE_STRENGTH_2MA);
     pio_sm_set_enabled(pio0, TX_SM, false);
     pio_sm_config tx = swire_request_program_get_default_config(request_offset);
     sm_config_set_set_pins(&tx, SWS_TX, 1);
-    sm_config_set_clkdiv(&tx, (float)clock_get_hz(clk_sys) / 32000000.0f);
+    // 64 PIO cycles low = two UART bit times, matching a short-low trigger.
+    sm_config_set_clkdiv(&tx, (float)clock_get_hz(clk_sys) / (32.0f * baud));
     pio_sm_init(pio0, TX_SM, request_offset, &tx);
     pio_sm_set_enabled(pio0, TX_SM, true);
+    native_tx_active = true;
 }
 
 static void sws_start(uint32_t baud) {
@@ -189,6 +213,8 @@ static void sws_start(uint32_t baud) {
 
 static void serial_start(uint port, uint32_t baud) {
     if (port == 0) {
+        pio_sm_set_enabled(pio1, REPLY_SM, false);
+        native_rx_active = native_tx_active = false;
         sws_start(baud);
     } else {
         uart_init(uart1, baud);
@@ -201,6 +227,8 @@ static void serial_start(uint port, uint32_t baud) {
 }
 static void serial_stop(uint port) {
     if (port == 0) {
+        pio_sm_set_enabled(pio1, REPLY_SM, false);
+        native_rx_active = native_tx_active = false;
         pio_sm_set_enabled(pio0, TX_SM, false);
         pio_sm_set_enabled(pio0, RX_SM, false);
         release_pin(SWS_TX);
@@ -236,16 +264,11 @@ static void serial_core(void) {
                 continue;
             }
             if (port == 0 && reply_pending) {
-                if (!reply_ready && !pio_sm_is_rx_fifo_empty(pio0, RX_SM)) {
-                    reply_byte = (uint8_t)pio_sm_get(pio0, RX_SM);
+                if (!reply_ready && !pio_sm_is_rx_fifo_empty(pio1, REPLY_SM)) {
+                    reply_byte = (uint8_t)pio_sm_get(pio1, REPLY_SM);
                     reply_ready = true;
-                    // Let the final data pulse and stop pulse finish before
-                    // restoring the UART echo receiver or sending another byte.
-                    reply_settle = time_us_64() + 100;
                 }
-                if (reply_ready && time_us_64() >= reply_settle) {
-                    sws_uart_transmitter(baud[0]);
-                    sws_uart_receiver(baud[0]);
+                if (reply_ready) {
                     if (reply_is_block) {
                         block_buffer[block_completed] = reply_byte;
                         __dmb();
@@ -253,9 +276,13 @@ static void serial_core(void) {
                         if (block_cancel || block_completed == block_count) {
                             __dmb();
                             block_state = block_cancel ? BLOCK_ERROR : BLOCK_DONE;
+                            sws_uart_transmitter(baud[0]);
+                            sws_uart_receiver(baud[0]);
                         }
                         ++rx_count[0];
                     } else {
+                        sws_uart_transmitter(baud[0]);
+                        sws_uart_receiver(baud[0]);
                         // Preserve the legacy reader's nine sample bytes.
                         for (uint bit = 0; bit < 8; ++bit) {
                             uint8_t sample = reply_byte & (0x80u >> bit) ? 0x80 : 0xfe;
@@ -278,13 +305,15 @@ static void serial_core(void) {
             if (port == 0 && block_state == BLOCK_BUSY) {
                 __dmb();
                 if (block_cancel || !sws_read_mode || frame_used || next_baud != baud[0]) {
+                    sws_uart_transmitter(baud[0]);
+                    sws_uart_receiver(baud[0]);
                     block_state = BLOCK_ERROR;
                     continue;
                 }
                 if (!pio_sm_is_tx_fifo_empty(pio0, TX_SM) || time_us_64() < tx_guard[0]) continue;
                 sws_reply_receiver();
                 if (!block_completed) trace_start();
-                sws_request_pulse();
+                sws_request_pulse(baud[0]);
                 ++tx_count[0];
                 reply_is_block = reply_pending = true;
                 reply_ready = false;
@@ -315,7 +344,7 @@ static void serial_core(void) {
                             sws_uart_receiver(baud[0]);
                             break;
                         }
-                        sws_request_pulse();
+                        sws_request_pulse(baud[0]);
                         ++tx_count[0];
                         frame_history[frame_index++ & 127] = 0x800000fe;
                         reply_pending = true;
@@ -390,6 +419,7 @@ void tud_umount_cb(void) {
 
 // Read-only diagnostics use endpoint zero, so no text contaminates SWS data.
 // Request 0x01 returns ten LE uint32 values; request 0xb0 returns to BOOTSEL.
+extern bool bridge_ms_os_request(uint8_t rhport, uint8_t stage, const tusb_control_request_t *request);
 bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, const tusb_control_request_t *request) {
     static uint32_t status[10];
     if (request->bmRequestType_bit.type != TUSB_REQ_TYPE_VENDOR) return false;
@@ -415,6 +445,7 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, const tusb_contro
         }
         return false;
     }
+    if (request->bRequest == 0x30) return bridge_ms_os_request(rhport, stage, request);
     if (request->bRequest == 0x10 && request->bmRequestType == 0x40 &&
         request->wIndex == 0 && request->wLength == 0) {
         if (stage == CONTROL_STAGE_SETUP) {
@@ -481,7 +512,7 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, const tusb_contro
     if (request->bRequest == 0x01 && request->bmRequestType == 0xc0) {
         if (stage == CONTROL_STAGE_SETUP) {
             status[0] = 0x31505348; // "HSP1"
-            status[1] = 0x00010003;
+            status[1] = 0x00010005;
             status[2] = ENABLE_TAG_RESET | (reset_asserted << 1) |
                 (hardware_open[0] << 2) | (hardware_open[1] << 3);
             status[3] = requested_baud[0]; status[4] = requested_baud[1];
@@ -534,7 +565,7 @@ int main(void) {
     release_pin(TAG_TX); release_pin(TAG_RX);
     tx_offset = pio_add_program(pio0, &bridge_tx_program);
     rx_offset = pio_add_program(pio0, &bridge_rx_program);
-    reply_offset = pio_add_program(pio0, &swire_reply_program);
+    reply_offset = pio_add_program(pio1, &swire_reply_program);
     request_offset = pio_add_program(pio0, &swire_request_program);
     trace_offset = pio_add_program(pio1, &bus_trace_program);
     trace_dma = dma_claim_unused_channel(true);

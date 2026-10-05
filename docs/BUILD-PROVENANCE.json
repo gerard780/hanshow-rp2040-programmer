@@ -1,10 +1,16 @@
 {
-  "programmer_version": "1.3",
+  "programmer_version": "1.5",
   "source_files": {
-    "src/main.c": "ac5d516aef6adfc60bf6324d8167049afe6ff3477fc2155ba752e1fcdd05d3c1",
-    "src/serial.pio": "81b42516f0093b6969cf1becf4a9a27a9bf8b2c194a026373ceeee7ee045161f",
-    "src/tusb_config.h": "62f718f0d409453709ba15cbeb5544b80361b9d826a6f280eb87f6ac41d5040d",
-    "src/usb_descriptors.c": "a9c896a5f683c3f74f691339c08e8224c3a52ee47813c07e8129eb411a1e6a2a"
+    "src/main.c": "0e5e147cf0158d5ade78a0424c445304872b965de804b3405eeb71f616bb0451",
+    "src/serial.pio": "87263e2413b746ca513a6a6a6c8060bf6607c7570b85920426725b1c98743946",
+    "src/tusb_config.h": "f70e9d1aae2e9c5507695fb44b53c9740c2709951c99f5e900a55a1fb7007087",
+    "src/usb_descriptors.c": "9586fa6485c3637d3ba04c957f6579bc895051a3c4473c56d2b72e536e1bb003",
+    "CMakeLists.txt": "4f104ec63bb41b9d32d7b0d1093b5cc5e8b1c29449669c67122d8b607d2f9e6e",
+    "readback.py": "2ff2362c98330f2ee0b424e151097933c41167efd8eb6e8d61d428916aae902a",
+    "benchmark_readback.py": "bdc46f8d74e656ed91ccdb0d79e6687a52b96bf766d4778955e2b21a38dea843",
+    "firmware-dumper/sws.js": "120929ca4663e3b4ac4dfda293d74677e6014d5a3bd895d3404ea8b300804de2",
+    "tools/speed/flash_backend.py": "b1be13ef8c37d944f6ee4acc7fc62ceff63ac804a23ccffe110f26bf9712b5cf",
+    "tools/speed/write_validation.py": "fecd51b4ca68cfedd3141023f278caf497dcc6846f84cd6ce969c4cc2ad5898b"
   },
   "upstream_readers": [
     {
@@ -24,7 +30,7 @@
       "license": "Unlicense"
     }
   ],
-  "uf2_sha256": "b3254f4d36f16ceef8ced3f883550fe4936a013d11dad5d8f637938b6629314e",
-  "origin": "Based on the bench programmer transport; public v1.3 adds address-width selection and includes only SWS, reset and UART.",
+  "uf2_sha256": "845d574f41a5349530d8ac33096515368c4d0390398182d6dc620bf06fdc0e7d",
+  "origin": "Public v1.5 combines bench v1.4 speed transport and browser USB descriptors with public SWS address-width selection; only SWS, reset and UART are included.",
   "scope": "No tag firmware dumps are included."
 }

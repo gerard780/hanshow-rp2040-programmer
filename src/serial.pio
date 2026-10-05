@@ -50,11 +50,25 @@ reply_one:
     in x, 1
 reply_next:
     jmp y-- reply_bit
+; The final data bit may have finished classification before its cell ends.
+; Consume the end cell's low pulse, then retain idle high for five times that
+; measured pulse. The low loop costs three cycles per count; the idle loop
+; costs fifteen. This covers both the Telink short-low ratio and UART-shaped
+; cells, without a fixed 100 us host-side guard. Core1 still bounds all waits.
+    wait 0 pin 0
+    mov x, !null
+end_low:
+    jmp pin end_high
+    jmp x-- end_low [1]
+end_high:
+    mov x, !x
+end_idle:
+    jmp x-- end_idle [14]
     push block
 reply_done:
     jmp reply_done
 
-; A two-microsecond request pulse, independent of the host's UART baud rate.
+; 64 cycles low; the C configuration scales this to two UART bit times.
 .program swire_request
     set pins, 0 [31]
     nop [31]

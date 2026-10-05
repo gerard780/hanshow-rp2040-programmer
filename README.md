@@ -1,6 +1,6 @@
 # Hanshow RP2040-Zero programmer
 
-Source, wiring and **public v1.3 programmer firmware (experimental)** for our RP2040-Zero
+Source, wiring and **public v1.5 programmer firmware (experimental)** for our RP2040-Zero
 Telink SWS bridge. It exposes a USB SWS programmer and a separate USB tag UART,
 with native PIO reply capture and up to 4 KiB per block-read request.
 
@@ -14,10 +14,18 @@ addressing still limit compatibility; modern Telink families need their own
 backend. The known Nebular chip/flash path has bench evidence. Other chips and
 the 826x framing path remain experimental until tested on physical hardware.
 
-**Development update, 5 October 2026:** a separate bench v1.4 prototype now
-has faster PIO capture and read/write tools defaulting to 2 Mbaud, with a
-1.5 Mbaud fallback. Those changes are not included in this repository's v1.3
-UF2. See the [development status and measured results](docs/DEVELOPMENT-STATUS.md).
+The v1.5 source and UF2 combine the faster PIO transport, the browser USB
+interface and the public two-/three-byte SWS addressing. Python reads default
+to **2 Mbaud** on v1.4/v1.5; use `--baud 1500000` for the explicit fallback.
+Older bridges keep the 921600 default. Matching independent captures are
+required: the earlier 2.5/3 Mbaud experiments produced intermittent errors.
+The measured 30-second reads belong to the bench v1.4 build on one specimen;
+the combined public v1.5 UF2 still needs physical validation.
+
+[Download the experimental v1.5 release](https://github.com/gerard780/hanshow-rp2040-programmer/releases/tag/v1.5) ·
+[Browser dumper](firmware-dumper/README.md) ·
+[Guarded write tools](tools/speed/README.md) ·
+[Development results](docs/DEVELOPMENT-STATUS.md)
 
 ## Build the programmer
 
@@ -76,7 +84,7 @@ firmware on the **programmer**, not on the tag.
 UF2 SHA-256:
 
 ```text
-b3254f4d36f16ceef8ced3f883550fe4936a013d11dad5d8f637938b6629314e
+845d574f41a5349530d8ac33096515368c4d0390398182d6dc620bf06fdc0e7d
 ```
 
 The supplied UF2 has tag reset enabled. On the SWS port, GP2 pulls reset low
@@ -126,7 +134,7 @@ cmake -S . -B build \
   -DPICO_TOOLCHAIN_PATH=/path/to/arm-toolchain \
   -DPICO_NO_PICOTOOL=1 -DCMAKE_BUILD_TYPE=Release \
   -DENABLE_TAG_RESET=ON
-SOURCE_DATE_EPOCH=1791072000 cmake --build build -j6
+SOURCE_DATE_EPOCH=1791158400 cmake --build build -j6
 python3 make_uf2.py build/hanshow_pio_bridge.bin build/hanshow_pio_bridge.uf2
 ```
 

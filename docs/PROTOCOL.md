@@ -40,3 +40,19 @@ The host sets 3 for the 825x-style backend or 2 for the 826x-style backend,
 then checks readback before opening SWS. Width changes are rejected while SWS
 or block capture is active. Default width is 3. This changes header recognition;
 the PIO pulse decoder and flash transfer protocol remain the same.
+
+## Public v1.5 integration
+
+Status revision is `0x00010005`, USB device revision `0x0105`. The two-byte
+address selection from public v1.3 is retained. The longer native reply PIO
+runs on PIO1 beside the tracer, consumes the end pulse and waits using its
+measured low duration before publishing. Block captures restart parked state
+machines rather than reinitializing them for every byte; the request pulse
+scales to two UART bit times at the configured baud.
+
+USB interface 4 is control-only vendor class. USB 2.1 BOS and Microsoft OS
+2.0 descriptors bind this interface to WinUSB on Windows while keeping the
+two CDC interfaces on their normal drivers. Request `0x30`, IN `0xc0`,
+`wIndex` 7, `wValue` 0 returns the OS descriptor. The browser selects and
+verifies three-byte SWS addressing before opening CDC. The browser transport
+uses 921600; the Python tools default to 2 Mbaud on the new transport.

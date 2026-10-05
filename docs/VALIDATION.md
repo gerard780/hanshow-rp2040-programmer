@@ -14,9 +14,9 @@ data; subsequent 1-, 4096- and 4137-byte reads matched the baseline.
 The programmer was subsequently used for guarded Nebular 154 wired application
 installation/readback. Private dumps and raw bench records are not included.
 
-## Public v1.3 and broader reader
+## Public integration and broader reader
 
-The public firmware keeps SWS, reset and the optional UART. It adds explicit
+The public firmware keeps SWS, reset and the optional UART. It retains explicit
 2/3-byte SWS header selection for the 826x/825x-style reader backends. The host
 probes repeated chip/JEDEC responses and flash size, requires matching nonblank
 sample reads, and verifies repeated captures and reset release. It rejects
@@ -45,3 +45,22 @@ record public source and firmware hashes. `SHA256SUMS` checks package files.
 The UART interface opened successfully in earlier checks, but useful tag console
 text and tag reception were not fully verified. USB VID/PID `cafe:4012` is a
 prototype identifier, not a registered product allocation.
+
+## Public v1.5 checks
+
+The combined v1.5 firmware builds with the pinned SDK/toolchain and no compiler
+warnings. Eleven reader/PIO tests cover broad chip probes, older bridge baud
+compatibility, explicit fallback, both SWS widths and all byte values over
+synthetic pulse timings, including missing/stuck end pulses and PIO capacity.
+Fourteen guarded-write tests cover protection boundaries, matching live backups,
+blank-erase checks, partial-program recovery and keeping the CPU halted if
+recovery fails. Browser tests cover repeated reads, mismatch/cancellation,
+USB/serial identity and selecting three-byte framing after an 826x session.
+Compiled descriptor checks verify the CDC/vendor layout, WinUSB binding and
+that the distributed UF2 reconstructs the built firmware.
+
+Bench v1.4 results, including the 2 Mbaud sweep and original-byte sector
+rewrites, are summarized in [development status](DEVELOPMENT-STATUS.md).
+The combined v1.5 UF2, physical browser capture, 826x path, additional specimens
+and full-image installation still need physical validation. Software tests use
+simulated data and do not change a connected tag.

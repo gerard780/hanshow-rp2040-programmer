@@ -1,0 +1,68 @@
+{
+  "source": "research/esl/publication/hanshow-rp2040-programmer/vendor/TLSR825xComFlasher.py",
+  "source_sha256": "2ea1b7c5266821e5d384a263daa7916bb4020fcdfb8f1ec0bed5842dcb94ca18",
+  "stop": "808080808080808080fe",
+  "writes": [
+    {
+      "address": 111,
+      "data": [
+        32
+      ],
+      "packet": "80fe80fe8080fe80fefefefefefefefefefefefefefefefefefefefefefefefe8080fe80808080fefefefefefefefefefefefefefe80fefefefefefe808080808080808080fe"
+    },
+    {
+      "address": 1538,
+      "data": [
+        5
+      ],
+      "packet": "80fe80fe8080fe80fefefefefefefefefefefefefefefefefefe8080fefefefefefefefefe80fefefefefefefefefefefefefefefefefefe80fe80fe808080808080808080fe"
+    },
+    {
+      "address": 178,
+      "data": [
+        52
+      ],
+      "packet": "80fe80fe8080fe80fefefefefefefefefefefefefefefefefefefefefefefe80fe8080fefe80fefefefefefefefefefefefefefefe8080fe80fefefe808080808080808080fe"
+    },
+    {
+      "address": 179,
+      "data": [
+        128
+      ],
+      "packet": "80fe80fe8080fe80fefefefefefefefefefefefefefefefefefefefefefefe80fe8080fefe8080fefefefefefefefefefefefe80fefefefefefefefe808080808080808080fe"
+    },
+    {
+      "address": 12,
+      "data": [
+        3,
+        7,
+        255,
+        0,
+        0
+      ],
+      "packet": "80fe80fe8080fe80fefefefefefefefefefefefefefefefefefefefefefefefefefefe8080fefefefefefefefefefefefefefefefefefefefe8080fefefefefefefe808080fefe8080808080808080fefefefefefefefefefefefefefefefefefefefefe808080808080808080fe"
+    },
+    {
+      "address": 13,
+      "data": [
+        10
+      ],
+      "packet": "80fe80fe8080fe80fefefefefefefefefefefefefefefefefefefefefefefefefefefe8080fe80fefefefefefefefefefefefefefefefe80fe80fefe808080808080808080fe"
+    },
+    {
+      "address": 12,
+      "data": [
+        159,
+        0
+      ],
+      "packet": "80fe80fe8080fe80fefefefefefefefefefefefefefefefefefefefefefefefefefefe8080fefefefefefefefefefefefefefe80fefe8080808080fefefefefefefefefefefe808080808080808080fe"
+    },
+    {
+      "address": 111,
+      "data": [
+        34
+      ],
+      "packet": "80fe80fe8080fe80fefefefefefefefefefefefefefefefefefefefefefefefe8080fe80808080fefefefefefefefefefefefefefe80fefefe80fefe808080808080808080fe"
+    }
+  ]
+}

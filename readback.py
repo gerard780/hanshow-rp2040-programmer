@@ -113,16 +113,22 @@ def preflight(reader, port, device, mode, size):
 def select_width(device, family):
     version = bridge_status(device)["version"]
     width = BACKENDS[family][0]
-    if version in ("1.1", "1.2"):
+    if version in ("1.1", "1.2", "1.4"):
         if width != 3:
-            raise RuntimeError("826x address framing requires public programmer firmware 1.3")
+            raise RuntimeError("826x address framing requires public programmer firmware 1.3 or 1.5")
         return
-    if version != "1.3":
+    if version not in ("1.3", "1.5"):
         raise RuntimeError(f"Unrecognized bridge protocol version {version}")
     device.ctrl_transfer(0x40, 0x21, width, 0, b"", timeout=2000)
     reply = bytes(device.ctrl_transfer(0xC0, 0x21, 0, 0, 4, timeout=2000))
     if len(reply) != 4 or struct.unpack("<I", reply)[0] != width:
         raise RuntimeError("Bridge address-width selection did not verify")
+
+
+def read_baud(version, requested=None):
+    if version not in ("1.1", "1.2", "1.3", "1.4", "1.5"):
+        raise RuntimeError(f"Unrecognized bridge protocol version {version}")
+    return requested if requested is not None else (2000000 if version in ("1.4", "1.5") else 921600)
 
 
 def finish(reader, port, device, mode):
@@ -160,6 +166,8 @@ def main():
     parser.add_argument("--runs", type=int, choices=(2, 3), default=2)
     parser.add_argument("--clock-mhz", type=int, choices=(16, 24, 32, 48), help="Override divider probes")
     parser.add_argument("--activation-ms", type=int, default=3000)
+    parser.add_argument("--baud", type=int, choices=(921600, 1500000, 2000000),
+                        help="Default: 2000000 on v1.4/v1.5; 921600 on older bridges. Fallback: 1500000")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.size is not None and not 1 <= args.size <= MAX_SIZE:
@@ -171,6 +179,7 @@ def main():
     if len(devices) != 1:
         raise SystemExit("Expected exactly one matching RP2040 programmer")
     device = devices[0]
+    baud = read_baud(bridge_status(device)["version"], args.baud)
     ports = [p for p in serial.tools.list_ports.comports()
              if os.path.realpath(p.device).casefold() == os.path.realpath(args.port).casefold()]
     if len(ports) != 1 or ports[0].serial_number != args.bridge_serial:
@@ -178,7 +187,7 @@ def main():
     if "if02" in os.path.realpath(args.port) or "Tag UART" in (ports[0].interface or ""):
         raise SystemExit("Select the SWS interface, not the tag UART")
     args.output.mkdir(parents=True, exist_ok=False)
-    result = dict(verified=False, port=args.port, attempts=[], runs=[],
+    result = dict(verified=False, port=args.port, baud=baud, attempts=[], runs=[],
                   hardware_scope="Legacy Telink SWS/SPI compatibility probe; exact MCU model unconfirmed")
     families = ("825x", "826x") if args.family == "auto" else (args.family,)
     try:
@@ -190,7 +199,7 @@ def main():
                 width, reader = load_reader(family)
                 select_width(device, family)
                 before = bridge_status(device)
-                with serial.Serial(args.port, 921600, timeout=0.1, write_timeout=2) as port:
+                with serial.Serial(args.port, baud, timeout=0.1, write_timeout=2) as port:
                     try:
                         reader.activate(port, args.activation_ms)
                         clocks = (args.clock_mhz,) if args.clock_mhz else (24, 16, 32, 48)

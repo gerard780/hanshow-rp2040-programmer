@@ -21,7 +21,7 @@ be captured completely by this backend. A nonstandard capacity code requires
 an explicit `--size` based on identified flash hardware; it is not labeled a
 verified complete dump unless the full capacity is independently detected.
 
-Public programmer v1.3 supports both SWS address widths. The old bench v1.1/1.2
+Public programmer v1.5 supports both SWS address widths. The old bench v1.1/1.2
 firmware supports only the 825x-style width and refuses the 826x selection.
 The firmware and reader are supplied as an experimental release; the broader
 chip paths need physical evidence.
@@ -50,6 +50,18 @@ tested Linux setup uses `sudo` with the virtual environment's Python.
 Connect the tag with USB unplugged. Disconnect its battery before supplying
 VCC from the Zero's 3V3. Check the resistor and direct sense connection against
 the diagram, then reconnect USB. UART is not required.
+
+## Baud and browser access
+
+The Python helper defaults to 2 Mbaud on v1.4/v1.5. Select `--baud 1500000`
+for the slower fallback, or `--baud 921600`. Older v1.1/v1.2/v1.3 bridges
+retain 921600 as their default. Failure remains an error, not an automatic
+retry. Two-byte SWS framing needs public v1.3 or v1.5; bench v1.4 is fixed
+three-byte framing.
+
+The [browser dumper](../firmware-dumper/README.md) is included and uses the
+v1.5 USB vendor interface. It opens serial at 921600 and targets the known
+825x chip/flash path. Use the Python helper for broader backend probing.
 
 ## Read twice and verify
 

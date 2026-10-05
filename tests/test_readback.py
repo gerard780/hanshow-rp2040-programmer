@@ -95,12 +95,22 @@ class ReadbackTests(unittest.TestCase):
 
     def test_both_address_widths_verify_and_old_bridge_rejects_826x(self):
         device = Device()
-        with patch("readback.bridge_status", return_value={"version": "1.3"}):
-            for family, width in (("826x", 2), ("825x", 3)):
-                readback.select_width(device, family)
-                self.assertEqual(device.width, width)
-        with patch("readback.bridge_status", return_value={"version": "1.2"}):
-            with self.assertRaises(RuntimeError): readback.select_width(device, "826x")
+        for version in ("1.3", "1.5"):
+            with patch("readback.bridge_status", return_value={"version": version}):
+                for family, width in (("826x", 2), ("825x", 3)):
+                    readback.select_width(device, family)
+                    self.assertEqual(device.width, width)
+        for version in ("1.2", "1.4"):
+            with patch("readback.bridge_status", return_value={"version": version}):
+                with self.assertRaises(RuntimeError): readback.select_width(device, "826x")
+
+    def test_default_baud_preserves_older_bridges_and_explicit_fallback(self):
+        for version in ("1.1", "1.2", "1.3"):
+            self.assertEqual(readback.read_baud(version), 921600)
+        for version in ("1.4", "1.5"):
+            self.assertEqual(readback.read_baud(version), 2000000)
+            self.assertEqual(readback.read_baud(version, 1500000), 1500000)
+        with self.assertRaises(RuntimeError): readback.read_baud("1.6")
 
 
 if __name__ == "__main__": unittest.main()

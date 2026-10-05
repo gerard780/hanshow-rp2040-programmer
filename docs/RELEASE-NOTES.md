@@ -1,20 +1,24 @@
-# Public programmer v1.3 (experimental)
+# Public programmer v1.5 (experimental)
 
-RP2040-Zero firmware, source and wiring for a Telink SWS bridge with a separate
-tag UART. Native USB block reads capture up to 4096 bytes per request. This
-build enables GP2 tag reset and adds selectable two- and three-byte SWS
-address framing.
+The source and UF2 now combine the newer PIO speed transport and browser USB
+interface with the public two-/three-byte SWS header support. Python readback
+on the new transport defaults to 2 Mbaud; `--baud 1500000` selects the explicit
+fallback. Older bridges retain the broad helper's 921600 default.
 
-The readback helper probes legacy 825x/826x-style backends without an exact
-chip-ID or flash-manufacturer allowlist, detects conventional JEDEC capacity,
-and requires matching samples and repeated captures. It records whether a
-capture covers the complete detected flash and checks reset release.
+Includes the browser dumper with two complete matching reads by default,
+Windows WinUSB descriptors for interface 4, and the guarded 256-byte-page
+flash backend/sector-validation tools. Browser sessions verify three-byte
+framing before opening CDC; broader Python reads preserve 825x/826x probing.
+All source, the rebuilt UF2, original adapter photos, KiCad schematic and 3D
+assembly are included in the repository/source archive.
 
-The source build and seven host tests passed. The new reader passed matching
-4 KiB reads on a known Nebular 154 using the earlier bench bridge v1.2.
-Public v1.3 firmware and the 826x framing path still need physical validation;
-other Telink register maps require additional backends. See
-[validation](VALIDATION.md) for the evidence and limits.
+The pinned source build passes without warnings. Reader/PIO, guarded-write,
+browser protocol/UI and compiled USB descriptor checks passed. Prior bench
+v1.4 tests found six matching 512 KiB reads at 2 Mbaud, about 29.86 seconds per
+read, and two original-byte sector rewrites around 1.18 seconds. These timings
+were measured on one specimen with the bench build, not the combined v1.5 UF2.
+The new public UF2, physical browser capture, 826x path and full-image
+installation still need physical validation. See [validation](VALIDATION.md).
 
-This UF2 installs on the RP2040 programmer. It is separate from the unified
-Nebular display firmware. No factory firmware dumps are included.
+This UF2 installs on the RP2040 programmer, separately from the unified
+Nebular display firmware. Factory firmware dumps are not included.
