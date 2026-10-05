@@ -14,6 +14,9 @@ needed. GitHub Pages serves the identical file from `docs/index.html`.
 The documentation links lead to GitHub only when you click them. Capture and
 verification stay in your browser, and the UF2 download is embedded locally.
 
+[Download the single HTML file](https://github.com/gerard780/hanshow-rp2040-programmer/releases/download/v1.5/hanshow-firmware-dumper.html).
+The embedded distribution notices travel with the file when you host a copy.
+
 From the repository root, run:
 
 ```sh
