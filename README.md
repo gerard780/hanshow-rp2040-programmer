@@ -23,7 +23,8 @@ The measured 30-second reads belong to the bench v1.4 build on one specimen;
 the combined public v1.5 UF2 still needs physical validation.
 
 [Download the experimental v1.5 release](https://github.com/gerard780/hanshow-rp2040-programmer/releases/tag/v1.5) ·
-[Browser dumper](firmware-dumper/README.md) ·
+[Open the browser dumper](https://gerard780.github.io/hanshow-rp2040-programmer/) ·
+[Standalone HTML and hosting](firmware-dumper/README.md) ·
 [Guarded write tools](tools/speed/README.md) ·
 [Development results](docs/DEVELOPMENT-STATUS.md)
 

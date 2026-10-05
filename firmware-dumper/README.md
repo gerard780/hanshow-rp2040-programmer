@@ -5,6 +5,15 @@ Web Serial in desktop Chrome or Edge. The binary and verification report stay
 on your computer. Install the [public v1.5 UF2](../dist/hanshow_pio_bridge.uf2)
 on the programmer using BOOTSEL; tag firmware does not need to be changed.
 
+**[Open the hosted dumper](https://gerard780.github.io/hanshow-rp2040-programmer/)**
+
+`index.html` is a standalone file containing the styles, transport/UI JavaScript
+and current programmer UF2 download. Copy **just that HTML file** to any static
+HTTPS host; no companion assets, CDN, build service or application backend are
+needed. GitHub Pages serves the identical file from `docs/index.html`.
+The documentation links lead to GitHub only when you click them. Capture and
+verification stay in your browser, and the UF2 download is embedded locally.
+
 From the repository root, run:
 
 ```sh
@@ -13,6 +22,19 @@ python3 -m http.server 8080 --bind 127.0.0.1
 
 Open <http://localhost:8080/firmware-dumper/>. HTTPS hosting also works.
 Keep the page open and the computer awake during capture and cleanup.
+
+## Rebuild the standalone file
+
+Edit `index.template.html`, `sws.js` or `app.js`, then run from the repo root:
+
+```sh
+python3 firmware-dumper/build_standalone.py
+python3 firmware-dumper/build_standalone.py --check
+```
+
+The builder verifies the UF2 against its manifest and produces identical
+`firmware-dumper/index.html` and `docs/index.html`. GitHub Pages uses main's
+`/docs` directory; `.nojekyll` keeps the published HTML as generated.
 
 ## Capture
 

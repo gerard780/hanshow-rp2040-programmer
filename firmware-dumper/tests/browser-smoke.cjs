@@ -10,6 +10,9 @@ const crypto = require('node:crypto');
   try {
     const page = await browser.newPage({viewport: {width: 1200, height: 1000}});
     const errors = []; page.on('pageerror', e => errors.push(e.message));
+    const requests = []; page.on('request', request => {
+      if (request.url().startsWith('http')) requests.push(request.url());
+    });
     await page.addInitScript({path: __dirname + '/fake-rp2040.js'});
     await page.addInitScript(() => {
       window.mockBridge = new FakeRP2040();
@@ -19,6 +22,10 @@ const crypto = require('node:crypto');
     await page.goto(process.env.DUMPER_URL || 'http://127.0.0.1:8765/firmware-dumper/');
     assert(await page.locator('#verify').isChecked());
     assert(await page.locator('#dump').isDisabled());
+    const uf2Download = page.waitForEvent('download');
+    await page.locator('a[download="hanshow_pio_bridge.uf2"]').click();
+    const uf2 = fs.readFileSync(await (await uf2Download).path());
+    assert.deepEqual(uf2, fs.readFileSync(__dirname + '/../../dist/hanshow_pio_bridge.uf2'));
     await page.screenshot({path: '/tmp/firmware-dumper-desktop.png', fullPage: true});
     async function connect() {
       await page.locator('#usb').click();
@@ -62,6 +69,7 @@ const crypto = require('node:crypto');
     assert.equal(await page.evaluate(() => window.mockBridge.cancelCount), 1);
     assert.equal(await page.evaluate(() => window.mockBridge.signals.at(-1).requestToSend), false);
     assert.deepEqual(errors, []);
-    console.log('Browser checks passed: complete downloads, hash/report, mismatch, cancellation, closed handles, mobile layout.');
+    assert(requests.every(url => url === (process.env.DUMPER_URL || 'http://127.0.0.1:8765/firmware-dumper/')), 'Standalone page loaded another network resource');
+    console.log('Browser checks passed: standalone page without other network resources, embedded UF2, complete downloads, hash/report, mismatch, cancellation, closed handles, mobile layout.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

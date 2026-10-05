@@ -8,3 +8,5 @@
 hardware/as-built/models/** binary linguist-generated=true
 hardware/as-built/exports/** linguist-generated=true
 hardware/as-built/viewer/vendor/** linguist-vendored=true
+firmware-dumper/index.html linguist-generated=true
+docs/index.html linguist-generated=true
