@@ -115,20 +115,24 @@ def select_width(device, family):
     width = BACKENDS[family][0]
     if version in ("1.1", "1.2", "1.4"):
         if width != 3:
-            raise RuntimeError("826x address framing requires public programmer firmware 1.3 or 1.5")
+            raise RuntimeError("826x address framing requires public programmer firmware 1.3, 1.5 or 1.6")
         return
-    if version not in ("1.3", "1.5"):
+    if version not in ("1.3", "1.5", "1.6"):
         raise RuntimeError(f"Unrecognized bridge protocol version {version}")
-    device.ctrl_transfer(0x40, 0x21, width, 0, b"", timeout=2000)
     reply = bytes(device.ctrl_transfer(0xC0, 0x21, 0, 0, 4, timeout=2000))
+    if len(reply) != 4 or struct.unpack("<I", reply)[0] not in (2, 3):
+        raise RuntimeError("Invalid SWS address-width response")
+    if struct.unpack("<I", reply)[0] != width:
+        device.ctrl_transfer(0x40, 0x21, width, 0, b"", timeout=2000)
+        reply = bytes(device.ctrl_transfer(0xC0, 0x21, 0, 0, 4, timeout=2000))
     if len(reply) != 4 or struct.unpack("<I", reply)[0] != width:
         raise RuntimeError("Bridge address-width selection did not verify")
 
 
 def read_baud(version, requested=None):
-    if version not in ("1.1", "1.2", "1.3", "1.4", "1.5"):
+    if version not in ("1.1", "1.2", "1.3", "1.4", "1.5", "1.6"):
         raise RuntimeError(f"Unrecognized bridge protocol version {version}")
-    return requested if requested is not None else (2000000 if version in ("1.4", "1.5") else 921600)
+    return requested if requested is not None else (2000000 if version in ("1.4", "1.5", "1.6") else 921600)
 
 
 def finish(reader, port, device, mode):
@@ -167,7 +171,7 @@ def main():
     parser.add_argument("--clock-mhz", type=int, choices=(16, 24, 32, 48), help="Override divider probes")
     parser.add_argument("--activation-ms", type=int, default=3000)
     parser.add_argument("--baud", type=int, choices=(921600, 1500000, 2000000),
-                        help="Default: 2000000 on v1.4/v1.5; 921600 on older bridges. Fallback: 1500000")
+                        help="Default: 2000000 on v1.4/v1.5/v1.6; 921600 on older bridges. Fallback: 1500000")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.size is not None and not 1 <= args.size <= MAX_SIZE:

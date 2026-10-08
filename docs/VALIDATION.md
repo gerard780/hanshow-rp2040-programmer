@@ -104,7 +104,7 @@ flash matched the original backups. Original protection `0x002c` and CPU reset
 were restored, with no added transport faults. Native operations took 1.176 s
 and 1.162 s, excluding full backups and activation. This selected sector
 contained zero bytes; no claim of all-byte-pattern hardware coverage is made.
-The programmer remains on the published v1.5 UF2. Full 437 application
+At the end of this v1.5 investigation, the programmer was retained on v1.5. Full 437 application
 installation, the 437 display driver and other specimens remain untested.
 
 A separate v1.5 host issue was reproduced after the preceding serial session:
@@ -116,5 +116,48 @@ from two-byte framing still require an idle bridge; this change does not
 relax the firmware's active-session guard. Regression tests cover this case,
 malformed width replies and the legacy/native status-read discrepancy.
 
-The vendor reader and UF2 remain unchanged. Private captures, device identity,
+The v1.5 investigation did not modify the vendor reader or UF2. Private captures, device identity,
 and bench-only orchestration are excluded from the public package.
+
+## v1.6 release validation — 8 October 2026
+
+The exact v1.6 release UF2 (`55a226a0...c454a51`) was built from the pinned
+SDK/compiler and installed on the bench while holding its shared test locks.
+One `026255` / `eb6013` specimen passed three original-byte rewrites of mixed
+application sector `0x8000`: 64-byte programs at 921600 baud, then two
+256-byte-page runs at 2 Mbaud. Every erase was blank-checked and every sector
+verified. Two complete 512 KiB backups and the post-write full read matched;
+original `0x002c` protection and CPU reset verified, with zero new transport
+faults. The specimen's application and factory data were preserved.
+
+| Operation | Time |
+| --- | ---: |
+| Conservative sector rewrite | 6.310 s |
+| Native sector rewrite, run 1 | 1.176 s |
+| Native sector rewrite, run 2 | 1.162 s |
+| Complete 512 KiB read | 29.43–29.45 s |
+
+Rewrite times include live precheck, erase, blank check, programming and sector
+verification, excluding activation and complete backups. This is one sector
+on one specimen, not a long-term reliability or other-tag compatibility test.
+
+Three repeated SET requests for the existing three-byte width succeeded after
+the serial session. A real change to two-byte width during active SWS and an
+invalid width were both rejected. The new application's installer passed a
+physical **dry run** against two additional matching full backups. Its private
+test plan used a CRC/padding-corrected copy of the current bench application
+for preflight only; it performed no erase/program or protection changes.
+No experimental 437 image was installed on this different-model bench tag.
+
+Software checks passed: 34 guarded-write/status/installer tests, 11 readback/PIO
+tests, 18 browser protocol cases, three compiled descriptor/UF2 checks and
+Chromium UI smoke tests. Installer simulations include successful writes,
+sector zero last, stale-plan rejection, ignored erases, partial-page recovery
+including a failure in sector zero, failed recovery, protection-restore failure
+and unexpected upper-flash changes. The standalone HTML embeds the same UF2
+and passes the generated-file check without companion network resources.
+
+Full 437 installation/display behavior, physical browser capture (including
+the earlier `0x035000` mismatch), Windows hardware writes, 826x hardware and
+additional tags remain untested. No private dumps, device IDs, test plans or
+unreviewed CAD files are published. The bench programmer is retained on v1.6.

@@ -1,6 +1,6 @@
 # Hanshow RP2040-Zero programmer
 
-Source, wiring and **public v1.5 programmer firmware (experimental)** for our RP2040-Zero
+Source, wiring and **public v1.6 programmer firmware (experimental)** for our RP2040-Zero
 Telink SWS bridge. It exposes a USB SWS programmer and a separate USB tag UART,
 with native PIO reply capture and up to 4 KiB per block-read request.
 
@@ -14,19 +14,23 @@ addressing still limit compatibility; modern Telink families need their own
 backend. The known Nebular chip/flash path has bench evidence. Other chips and
 the 826x framing path remain experimental until tested on physical hardware.
 
-The v1.5 source and UF2 combine the faster PIO transport, the browser USB
-interface and the public two-/three-byte SWS addressing. Python and browser reads default
-to **2 Mbaud** on v1.4/v1.5; use `--baud 1500000` or the browser’s 1.5 Mbaud selector for the explicit fallback.
-Older bridges keep the 921600 default. Matching independent captures are
-required: the earlier 2.5/3 Mbaud experiments produced intermittent errors.
-The measured 30-second reads belong to the bench v1.4 build on one specimen;
-the combined public v1.5 UF2 still needs physical validation.
+v1.6 fixes reconnects after legacy SWS activation: selecting the current address
+width succeeds while a real width change still requires an idle bridge.
+The host readers avoid unnecessary width changes on v1.5 too. Reads default to
+**2 Mbaud** on v1.4–v1.6; use `--baud 1500000` or the browser selector for the
+explicit fallback. Independent matching captures remain required.
 
-[Download the experimental v1.5 release](https://github.com/gerard780/hanshow-rp2040-programmer/releases/tag/v1.5) ·
+The new [application installer](docs/FLASHING.md) uses corrected SPI status
+polling and two-byte protection handling for `026255` / `EB6013`. The vendored
+upstream CLI still has the reported `Flash status 0xff` bug; upgrading the UF2
+alone does not fix its erase/write commands. Use `flash_application.py` with
+the target application's prepared same-tag plan.
+
+[Download the experimental v1.6 release](https://github.com/gerard780/hanshow-rp2040-programmer/releases/tag/v1.6) ·
 [Open the browser dumper](https://gerard780.github.io/hanshow-rp2040-programmer/) ·
 [Standalone HTML and hosting](firmware-dumper/README.md) ·
-[Guarded write tools](tools/speed/README.md) ·
-[Development results](docs/DEVELOPMENT-STATUS.md)
+[Application flashing](docs/FLASHING.md) ·
+[Validation and limits](docs/VALIDATION.md)
 
 ## Build the programmer
 
@@ -75,7 +79,7 @@ firmware on the **programmer**, not on the tag.
 UF2 SHA-256:
 
 ```text
-845d574f41a5349530d8ac33096515368c4d0390398182d6dc620bf06fdc0e7d
+55a226a09190eaf8bae327b0671f9c1d1d261f7001a51e233e2f23a95c454a51
 ```
 
 The supplied UF2 has tag reset enabled. On the SWS port, GP2 pulls reset low

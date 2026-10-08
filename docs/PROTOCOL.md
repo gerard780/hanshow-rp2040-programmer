@@ -54,5 +54,17 @@ USB interface 4 is control-only vendor class. USB 2.1 BOS and Microsoft OS
 2.0 descriptors bind this interface to WinUSB on Windows while keeping the
 two CDC interfaces on their normal drivers. Request `0x30`, IN `0xc0`,
 `wIndex` 7, `wValue` 0 returns the OS descriptor. The browser selects and
-verifies three-byte SWS addressing before opening CDC. The browser transport
-uses 921600; the Python tools default to 2 Mbaud on the new transport.
+verifies three-byte SWS addressing before opening CDC. The browser and Python tools default to 2 Mbaud on v1.4–v1.6;
+older browser v1.3 sessions use 921600 baud.
+
+## Public v1.6 reconnect correction
+
+Status revision is `0x00010006`, USB device revision `0x0106`. For request
+`0x21`, OUT selecting the current width now acknowledges without changing
+state, including during an active SWS/capture session. Invalid widths still
+stall; a genuine change between 2 and 3 still stalls while SWS, capture or
+queued transmit data is active. This fixes repeated host connections after
+legacy activation retained SWS across DTR changes. Hosts read the current
+width first for compatibility with v1.5. After using two-byte framing, USB
+reconnection may be needed before switching families. PIO timing, USB
+interface numbers and the block-capture protocol are unchanged.

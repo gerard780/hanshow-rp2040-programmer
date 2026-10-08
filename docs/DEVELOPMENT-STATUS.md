@@ -1,4 +1,16 @@
-# Development status — 5 October 2026
+# Current development status — 8 October 2026
+
+v1.6 fixes repeated SWS address-width selection and adds a guarded application
+installer with correct status polling/protection handling. The candidate UF2
+passed physical original-byte erase/program tests on one `026255` / `eb6013`
+bench tag, including complete-flash preservation and restored protection.
+Current results and limits are in [validation](VALIDATION.md); application
+instructions are in [flashing](FLASHING.md). The 437 full-image installation,
+physical browser capture and 826x hardware path remain untested.
+
+The earlier v1.4/v1.5 development notes below are historical.
+
+## Historical development status — 5 October 2026
 
 The public **v1.5 experimental** source and UF2 now combine the faster PIO
 transport and browser USB descriptors from the bench prototype with the

@@ -104,7 +104,7 @@ test('speed bridge v1.4 is identified while unknown revisions remain rejected', 
   try {
     env.fake.version = 0x10004;
     assert.equal((await env.bridge.status()).version, '1.4');
-    env.fake.version = 0x10006;
+    env.fake.version = 0x10007;
     await assert.rejects(env.bridge.status(), /supported RP2040 bridge/);
   } finally { await finish(env); }
 });
@@ -212,4 +212,33 @@ test('a diagnostic failure preserves rejection and a short first read cannot bec
       assert.equal(env.fake.registers.get(0x6f), 0x22);
     } finally { await finish(env); }
   }
+});
+
+ test('v1.6 supports two complete captures over repeated connections', async () => {
+  const fake = new FakeRP2040(); fake.version = 0x10006;
+  for (let session = 0; session < 2; session++) {
+    if (session) fake.makeStreams();
+    const bridge = new USBBridge(fake);
+    assert.equal((await bridge.open()).version, '1.6');
+    await fake.open({baudRate: 2000000});
+    const io = new SerialIO(fake, 40);
+    const reader = new RP2040Reader(io, bridge, undefined, 2000000);
+    try {
+      const result = await capture(reader, {activationMs: 100, fullVerify: true});
+      assert.deepEqual(result.data, fake.memory);
+    } finally { await io.close(); await bridge.close(); }
+  }
+  assert.equal(defaultBaud('1.6'), 2000000);
+});
+
+test('v1.5 reconnect skips an unnecessary width SET after legacy SWS activity', async () => {
+  const fake = new FakeRP2040(); fake.addressWidth = 3;
+  const original = fake.controlTransferOut.bind(fake);
+  fake.controlTransferOut = async setup => {
+    if (setup.request === 0x21) throw new Error('Active v1.5 bridge rejects SET');
+    return original(setup);
+  };
+  const bridge = new USBBridge(fake);
+  try { assert.equal((await bridge.open()).version, '1.5'); }
+  finally { await bridge.close(); }
 });

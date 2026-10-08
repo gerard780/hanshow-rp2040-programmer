@@ -14,7 +14,7 @@ class Device:
 class WidthTests(unittest.TestCase):
     def test_previous_session_with_three_byte_headers_needs_no_set(self):
         dev=Device()
-        with patch.object(bench,'bridge_status',return_value={'version':'1.5'}):bench.select_825x_width(dev)
+        with patch.object(bench,'bridge_status',return_value={'version':'1.6'}):bench.select_825x_width(dev)
         self.assertEqual(dev.calls,[(0xc0,0x21,0,0)])
     def test_idle_wrong_width_is_changed_and_verified(self):
         dev=Device(2,False)

@@ -1,7 +1,7 @@
 # Guarded flash and speed tools
 
 These are the updated bench tools for the known `026255` / `eb6013` Nebular
-path. They support bridge v1.4/v1.5 and default to **2 Mbaud**, with explicit
+path. They support bridge v1.4/v1.5/v1.6 and default to **2 Mbaud**, with explicit
 `--baud 1500000` fallback. They are separate from the broad, read-only
 [readback helper](../../readback.py). Measurements and hardware limits are
 in [development status](../../docs/DEVELOPMENT-STATUS.md).
@@ -34,7 +34,7 @@ sudo .venv/bin/python tools/speed/write_validation.py \
 `--apply` explicitly enables original-byte sector rewrites. `--baud 1500000`
 selects the fallback; it is not automatic. Higher rates had intermittent read
 errors in the earlier experiments. Always retain matching independent backups.
-The known-chip tools restore and verify three-byte addressing on public v1.5
+The known-chip tools restore and verify three-byte addressing on public v1.5/v1.6
 before opening serial, including after the broad helper selected 826x framing.
 
 `benchmark_readback.py` measures known-chip reads. `hardware_check.py` checks
@@ -52,7 +52,7 @@ Offline checks:
 
 Tests cover factory boundaries, write gating, live mismatches, ignored erases,
 partial-program recovery, failed-recovery halt and backup-only operation.
-Simulation checks do not physically validate the combined public v1.5 UF2.
+Simulation checks complement the physical evidence in [validation](../../docs/VALIDATION.md).
 
 ## Legacy `Flash status 0xff` report
 
@@ -65,10 +65,11 @@ MID1360EB driver's two-byte status write and clears only BP mask `0x407c`,
 preserving other status bits and restoring the saved protection afterward.
 Do not bypass the timeout or replace the whole status register blindly.
 
-A physical original-byte sector test passed using the exact public v1.5 UF2;
-see [validation](../../docs/VALIDATION.md). `write_validation.py` verifies this
-write path with backups and restoration; it does not install
-`application-padded.bin`. `flash_backend.py` is the sector API for a guarded
-installer, not a standalone image-flashing command. Installing a different
-437 application still requires a complete same-tag backup, application-only
-erases, sector zero last and verification of the entire expected flash.
+Physical original-byte tests passed using the published v1.5 UF2 and the
+v1.6 release candidate; see [validation](../../docs/VALIDATION.md).
+`write_validation.py` remains an original-byte bench test. For a prepared
+`application-padded.bin`, use the root [flash_application.py](../../flash_application.py)
+entry point and [application flashing guide](../../docs/FLASHING.md). It verifies
+two fresh backups against the prepared plan, writes sector zero last, checks
+the complete expected image and restores protection. The complete experimental
+437 installation remains physically untested.

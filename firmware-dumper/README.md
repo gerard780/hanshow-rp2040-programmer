@@ -2,7 +2,7 @@
 
 Capture a tag's complete main flash through the RP2040-Zero using WebUSB and
 Web Serial in desktop Chrome or Edge. The binary and verification report stay
-on your computer. Install the [public v1.5 UF2](../dist/hanshow_pio_bridge.uf2)
+on your computer. Install the [public v1.6 UF2](../dist/hanshow_pio_bridge.uf2)
 on the programmer using BOOTSEL; tag firmware does not need to be changed.
 
 **[Open the hosted dumper](https://gerard780.github.io/hanshow-rp2040-programmer/)**
@@ -14,7 +14,7 @@ needed. GitHub Pages serves the identical file from `docs/index.html`.
 The documentation links lead to GitHub only when you click them. Capture and
 verification stay in your browser, and the UF2 download is embedded locally.
 
-[Download the single HTML file](https://github.com/gerard780/hanshow-rp2040-programmer/releases/download/v1.5/hanshow-firmware-dumper.html).
+[Download the single HTML file](https://github.com/gerard780/hanshow-rp2040-programmer/releases/download/v1.6/hanshow-firmware-dumper.html).
 The embedded distribution notices travel with the file when you host a copy.
 
 From the repository root, run:
@@ -46,20 +46,20 @@ The builder verifies the UF2 against its manifest and produces identical
    GP1 connects directly to that same SWS node. GP2 goes to RST. UART is optional.
 2. Choose the RP2040 USB device, then its **SWS `if00` serial interface**.
    Close other serial tools. The browser verifies USB/serial association before
-   halting the CPU. On v1.5 it selects and verifies three-byte SWS addressing
+   halting the CPU. On v1.5/v1.6 it selects and verifies three-byte SWS addressing
    before opening serial, including after a Python 826x readback session.
 3. Leave full verification enabled and click **Dump full flash**. The browser
    reads the complete detected main flash twice and compares every byte.
 4. Save both the `.bin` and `.json` report. Matching complete reads and successful
    cleanup are required before the complete-backup downloads become available.
 
-The browser defaults to **2 Mbaud on v1.4/v1.5**, matching the Python reader,
+The browser defaults to **2 Mbaud on v1.4/v1.5/v1.6**, matching the Python reader,
 and 921600 baud on v1.3. For a verification failure, reconnect and select
 **1.5 Mbaud** before choosing the serial port; 921600 is also available.
 The verified 24 MHz clock setting gives SWS dividers 24, 32 and 52 respectively.
 The activity log and downloaded report record the actual capture baud/divider.
 Use [readback.py](../readback.py) for broader legacy backend probing.
-Browser capture with the combined v1.5 build still needs physical validation.
+Browser capture with the v1.6 build still needs physical validation.
 The software tests use simulated USB/serial data, not a connected tag.
 
 ## Scope and verification
@@ -96,7 +96,7 @@ wake commands only; it has no flash erase/program/unlock/status-write path.
 
 ## USB and validation
 
-The v1.5 firmware exposes two CDC interfaces plus control-only vendor interface
+The v1.6 firmware exposes two CDC interfaces plus control-only vendor interface
 4. Its Microsoft OS descriptors bind only interface 4 to WinUSB on Windows;
 the serial interfaces retain normal drivers. Linux needs serial and USB
 permissions for prototype VID/PID `cafe:4012`.

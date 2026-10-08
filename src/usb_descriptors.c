@@ -8,7 +8,7 @@ static const tusb_desc_device_t device = {
     .bcdUSB = 0x0210, .bDeviceClass = TUSB_CLASS_MISC,
     .bDeviceSubClass = MISC_SUBCLASS_COMMON, .bDeviceProtocol = MISC_PROTOCOL_IAD,
     .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
-    .idVendor = 0xcafe, .idProduct = 0x4012, .bcdDevice = 0x0105,
+    .idVendor = 0xcafe, .idProduct = 0x4012, .bcdDevice = 0x0106,
     .iManufacturer = 1, .iProduct = 2, .iSerialNumber = 3, .bNumConfigurations = 1
 };
 const uint8_t *tud_descriptor_device_cb(void) { return (const uint8_t *)&device; }

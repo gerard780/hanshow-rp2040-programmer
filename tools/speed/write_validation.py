@@ -173,7 +173,7 @@ def main():
              and port.serial_number == args.bridge_serial]
     require(len(ports) == 1, "Serial port does not belong to selected Zero")
     before = bench.bridge_status(dev)
-    require(before["version"] in ("1.4", "1.5"), "Validation requires bridge v1.4 or v1.5")
+    require(before["version"] in ("1.4", "1.5", "1.6"), "Validation requires bridge v1.4, v1.5 or v1.6")
     bench.select_825x_width(dev)
     args.output.mkdir(parents=True, exist_ok=False)
     spec = importlib.util.spec_from_file_location("reader", args.reader)

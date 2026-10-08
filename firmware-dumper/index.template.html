@@ -53,7 +53,7 @@
     <label>Activation time (ms)<input id="activation" type="number" min="100" max="10000" step="100" value="3000"></label>
     <label><input id="reset" type="checkbox" checked>Use GP2 to reset the tag before capture</label>
     <label><input id="verify" type="checkbox" checked>Read the entire flash twice and require an exact match</label>
-    <p>The v1.4/v1.5 bridge defaults to 2 Mbaud. Previous Python bench reads took about 30 seconds per 512 KiB pass at this rate; browser timing may differ. If verification fails, reconnect and select 1.5 Mbaud before choosing the serial port. With this option off, verification checks 256-byte samples every 64 KiB and at the end.</p>
+    <p>The v1.4/v1.5/v1.6 bridge defaults to 2 Mbaud. Previous Python bench reads took about 30 seconds per 512 KiB pass at this rate; browser timing may differ. If verification fails, reconnect and select 1.5 Mbaud before choosing the serial port. With this option off, verification checks 256-byte samples every 64 KiB and at the end.</p>
   </section>
   <section aria-live="polite">
     <h2>3. Capture and download</h2>
@@ -63,7 +63,7 @@
     <p id="detail">The tag pauses during capture and is reset afterward. The dumper issues no flash erase, program or unlock commands.</p>
     <div id="result" hidden><p id="summary"></p><p id="hash"></p><div class="actions"><a id="binary" class="download">Download full flash (.bin)</a><a id="report" class="download">Download backup report (.json)</a></div></div>
   </section>
-  <p>Web dumper revision: 2026-10-05.2</p>
+  <p>Web dumper revision: 2026-10-08.1</p>
   <section><h2>Activity</h2><pre id="log" role="log"></pre><button id="save-log">Save activity log</button></section>
   <p>Supports TLSR825x chip ID 0x5562 and recognized flash IDs. Captures main flash address zero through the detected capacity; separate OTP/security registers are excluded. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/firmware-dumper/README.md">Details and troubleshooting</a>.</p>
 </main><script src="sws.js"></script><script src="app.js"></script></body></html>

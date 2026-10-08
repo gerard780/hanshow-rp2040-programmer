@@ -29,7 +29,7 @@ class FirmwareDescriptors(unittest.TestCase):
     def test_device_and_interfaces(self):
         device = self.descriptor('device')
         self.assertEqual(struct.unpack_from('<H', device, 2)[0], 0x0210)
-        self.assertEqual(struct.unpack_from('<HHH', device, 8), (0xcafe, 0x4012, 0x0105))
+        self.assertEqual(struct.unpack_from('<HHH', device, 8), (0xcafe, 0x4012, 0x0106))
         configuration = self.descriptor('configuration')
         self.assertEqual(struct.unpack_from('<H', configuration, 2)[0], len(configuration))
         self.assertEqual(configuration[4], 5)

@@ -78,7 +78,7 @@ def bridge_status(device):
 def select_825x_width(device):
     # The known-chip tools use three-byte headers; restore them after a broad
     # reader session selected 826x. Older bench bridges have fixed framing.
-    if bridge_status(device)["version"] == "1.5":
+    if bridge_status(device)["version"] in ("1.5", "1.6"):
         width = bytes(device.ctrl_transfer(0xC0, 0x21, 0, 0, 4, timeout=2000))
         if len(width) != 4 or struct.unpack("<I", width)[0] not in (2, 3):
             raise RuntimeError("Invalid SWS address-width response")
@@ -125,7 +125,7 @@ def main():
             raise SystemExit("Expected exactly one matching Zero")
         device = devices[0]
         select_825x_width(device)
-        if args.mode == "block" and bridge_status(device)["version"] not in ("1.1", "1.2", "1.3", "1.4", "1.5"):
+        if args.mode == "block" and bridge_status(device)["version"] not in ("1.1", "1.2", "1.3", "1.4", "1.5", "1.6"):
             raise SystemExit("Unsupported block-capture firmware")
     spec = importlib.util.spec_from_file_location("reader", args.reader)
     reader = importlib.util.module_from_spec(spec)

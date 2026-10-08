@@ -1,24 +1,37 @@
-# Public programmer v1.5 (experimental)
+# Programmer v1.6 — reconnect and guarded application writes (experimental)
 
-The source and UF2 now combine the newer PIO speed transport and browser USB
-interface with the public two-/three-byte SWS header support. Python readback
-on the new transport defaults to 2 Mbaud; `--baud 1500000` selects the explicit
-fallback. Older bridges retain the broad helper's 921600 default.
+Repeated connections after legacy SWS activation previously stalled when a
+host selected the already-active address width. v1.6 acknowledges that no-op
+while retaining the guards on genuine width changes. Python and browser hosts
+read the current width first, including for compatibility with v1.5.
 
-Includes the browser dumper with two complete matching reads by default,
-Windows WinUSB descriptors for interface 4, and the guarded 256-byte-page
-flash backend/sector-validation tools. Browser sessions verify three-byte
-framing before opening CDC; broader Python reads preserve 825x/826x probing.
-Programmer source, the rebuilt UF2, original adapter photos and the wiring
-diagram are included in the repository/source archive.
+The reported `Timeout! Flash status 0xff!` originates in the pinned upstream
+Python CLI's incorrect SPI status transaction. Upgrading the UF2 alone does
+not fix that CLI. The new `flash_application.py` uses the existing corrected
+status backend, two-byte protection writes and exact protection restoration.
+Use the application's prepared same-tag plan as described in
+[the flashing guide](FLASHING.md). It requires two new matching full backups,
+checks application hashes/CRC and preserved data, writes changed application
+sectors below `0x20000` with sector zero last, blank-checks/reads each sector
+and verifies the complete expected flash before reset. Failure attempts
+conservative restoration; unresolved recovery/protection keeps the CPU halted.
 
-The pinned source build passes without warnings. Reader/PIO, guarded-write,
-browser protocol/UI and compiled USB descriptor checks passed. Prior bench
-v1.4 tests found six matching 512 KiB reads at 2 Mbaud, about 29.86 seconds per
-read, and two original-byte sector rewrites around 1.18 seconds. These timings
-were measured on one specimen with the bench build, not the combined v1.5 UF2.
-The new public UF2, physical browser capture, 826x path and full-image
-installation still need physical validation. See [validation](VALIDATION.md).
+The released UF2 passed three physical original-byte rewrites of a mixed-data
+sector on one `026255` / `eb6013` tag. Two fast runs took 1.176 s and 1.162 s;
+all 512 KiB matched the backups afterward, protection/reset verified and no
+new transport faults occurred. Repeated width requests and active/invalid
+width rejection passed. The installer passed physical dry-run preflight.
+Host/PIO, guarded-write/recovery, browser protocol/UI, compiled USB descriptor,
+UF2 and standalone generation checks passed. See [validation](VALIDATION.md).
 
-This UF2 installs on the RP2040 programmer, separately from the unified
-Nebular display firmware. Factory firmware dumps are not included.
+The complete experimental 437 installation and display behavior remain
+physically untested. This release does not establish that the earlier physical
+browser mismatch is resolved; physical browser, Windows write and 826x hardware
+tests are still outstanding. It includes no tag dumps or unreviewed CAD files.
+
+The UF2 installs on the RP2040-Zero programmer. Nebular display application
+firmware is supplied separately. Source, UF2, standalone browser HTML and
+checksums accompany this experimental prerelease. Rollback for a programmer
+regression is the published v1.5 UF2 via BOOTSEL; retain current host tools for
+their v1.5 reconnect fix. Tag recovery uses your fresh same-tag backups, never
+another tag's dump.

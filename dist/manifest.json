@@ -1,7 +1,7 @@
 {
   "firmware": "Hanshow PIO Readback + UART",
-  "version": "1.5",
-  "status": "Experimental combined public build; bench v1.4 speed evidence; combined UF2 and 826x framing need physical validation",
+  "version": "1.6",
+  "status": "Experimental; original-byte writes/reconnect and installer dry run verified on one 026255/eb6013 tag; full application installation untested",
   "board": "waveshare_rp2040_zero",
   "reset_enabled": true,
   "pins": {
@@ -16,7 +16,7 @@
     3
   ],
   "default_sws_address_bytes": 3,
-  "uf2_sha256": "845d574f41a5349530d8ac33096515368c4d0390398182d6dc620bf06fdc0e7d",
+  "uf2_sha256": "55a226a09190eaf8bae327b0671f9c1d1d261f7001a51e233e2f23a95c454a51",
   "pico_sdk": "2.2.0",
   "pico_sdk_commit": "a1438dff1d38bd9c65dbd693f0e5db4b9ae91779",
   "tinyusb_commit": "86ad6e56c1700e85f1c5678607a762cfe3aa2f47",
@@ -26,13 +26,14 @@
   "block_capacity": 4096,
   "max_spi_flash_read_bytes": 16777216,
   "browser_usb_interface": 4,
-  "usb_device_revision": "0x0105",
+  "usb_device_revision": "0x0106",
   "host_defaults": {
     "read_baud": 2000000,
     "older_bridge_read_baud": 921600,
     "write_validation_baud": 2000000,
     "fallback_baud": 1500000,
     "automatic_fallback": false,
-    "browser_baud": 921600
+    "browser_baud": 2000000,
+    "older_bridge_browser_baud": 921600
   }
 }

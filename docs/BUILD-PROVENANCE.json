@@ -1,16 +1,18 @@
 {
-  "programmer_version": "1.5",
+  "programmer_version": "1.6",
   "source_files": {
-    "src/main.c": "0e5e147cf0158d5ade78a0424c445304872b965de804b3405eeb71f616bb0451",
+    "src/main.c": "044e4163f41976891d425147ba4cb78207a03d547a30236f80bf72141a8769c1",
     "src/serial.pio": "87263e2413b746ca513a6a6a6c8060bf6607c7570b85920426725b1c98743946",
     "src/tusb_config.h": "f70e9d1aae2e9c5507695fb44b53c9740c2709951c99f5e900a55a1fb7007087",
-    "src/usb_descriptors.c": "9586fa6485c3637d3ba04c957f6579bc895051a3c4473c56d2b72e536e1bb003",
+    "src/usb_descriptors.c": "5279531aedd374fed4c28b759e36da7611dee6bee039736cfec3cd2b5dbbe887",
     "CMakeLists.txt": "4f104ec63bb41b9d32d7b0d1093b5cc5e8b1c29449669c67122d8b607d2f9e6e",
-    "readback.py": "2ff2362c98330f2ee0b424e151097933c41167efd8eb6e8d61d428916aae902a",
-    "benchmark_readback.py": "98ebbf6b62a89d25c8ae703b8420a2d64702f98e86fa544d71ba889e71544d14",
-    "firmware-dumper/sws.js": "5478d203308e82d28d696e9b8223b82ad40dfbe146a3e050be3b31637ce02d85",
+    "readback.py": "975cc20b6f4d8b2b899a2c5f6884eb0fd219f990aab1b365e9ee605e6c857d16",
+    "benchmark_readback.py": "db45b4242f76da6856c92551143c47394dd08b37416e712618718d1e4db247e0",
+    "firmware-dumper/sws.js": "3aa81d8d58262a8363c425860fd297a48d0a7f3f5c1a26703a0623507a5217bc",
     "tools/speed/flash_backend.py": "b1be13ef8c37d944f6ee4acc7fc62ceff63ac804a23ccffe110f26bf9712b5cf",
-    "tools/speed/write_validation.py": "fecd51b4ca68cfedd3141023f278caf497dcc6846f84cd6ce969c4cc2ad5898b"
+    "tools/speed/write_validation.py": "bcd4faba70930438e3b977354d1a4fd02fc825667feb28883c86b23dd1ee6139",
+    "flash_application.py": "232e6e986886f12f19bbad159700e5680f6107f7232c67bce759cc9b857d4226",
+    "tools/speed/application_install.py": "77513fdf618cd443df5543856782b69e42aea80c065535714232e55467fafa41"
   },
   "upstream_readers": [
     {
@@ -30,7 +32,7 @@
       "license": "Unlicense"
     }
   ],
-  "uf2_sha256": "845d574f41a5349530d8ac33096515368c4d0390398182d6dc620bf06fdc0e7d",
-  "origin": "Public v1.5 combines bench v1.4 speed transport and browser USB descriptors with public SWS address-width selection; only SWS, reset and UART are included.",
+  "uf2_sha256": "55a226a09190eaf8bae327b0671f9c1d1d261f7001a51e233e2f23a95c454a51",
+  "origin": "Public v1.6 adds idempotent SWS address selection to v1.5, matching host/browser version support and a guarded prepared-application installer using the corrected SPI status backend.",
   "scope": "No tag firmware dumps are included."
 }

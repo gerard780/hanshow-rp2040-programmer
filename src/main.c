@@ -434,8 +434,12 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, const tusb_contro
         }
         if (request->bmRequestType == 0x40 && request->wLength == 0) {
             if (stage == CONTROL_STAGE_SETUP) {
-                if ((request->wValue != 2 && request->wValue != 3) ||
-                    requested_open[0] || hardware_open[0] || block_state == BLOCK_BUSY ||
+                if (request->wValue != 2 && request->wValue != 3) return false;
+                // Hosts may reselect the existing framing after legacy DTR
+                // activation left SWS open. A no-op is safe even while busy.
+                if (request->wValue == sws_address_bytes)
+                    return tud_control_status(rhport, request);
+                if (requested_open[0] || hardware_open[0] || block_state == BLOCK_BUSY ||
                     usb_to_serial[0].read != usb_to_serial[0].write) return false;
                 sws_address_bytes = request->wValue;
                 __dmb();
@@ -512,7 +516,7 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage, const tusb_contro
     if (request->bRequest == 0x01 && request->bmRequestType == 0xc0) {
         if (stage == CONTROL_STAGE_SETUP) {
             status[0] = 0x31505348; // "HSP1"
-            status[1] = 0x00010005;
+            status[1] = 0x00010006;
             status[2] = ENABLE_TAG_RESET | (reset_asserted << 1) |
                 (hardware_open[0] << 2) | (hardware_open[1] << 3);
             status[3] = requested_baud[0]; status[4] = requested_baud[1];

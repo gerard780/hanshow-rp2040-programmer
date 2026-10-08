@@ -4,7 +4,7 @@
  */
 (function (root) {
   'use strict';
-  const revision = '2026-10-05.2';
+  const revision = '2026-10-08.1';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const equal = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -22,7 +22,7 @@
   }
   const stop = () => encode([0xff]);
   const baudRates = [921600, 1500000, 2000000];
-  function defaultBaud(version) { return ['1.4', '1.5'].includes(version) ? 2000000 : 921600; }
+  function defaultBaud(version) { return ['1.4', '1.5', '1.6'].includes(version) ? 2000000 : 921600; }
   const header = (address, mode) => [0x5a, (address >> 16) & 255, (address >> 8) & 255, address & 255, mode];
   function writePacket(address, data) {
     const body = encode([...header(address, 0), ...data]);
@@ -237,7 +237,7 @@
       const data = await this.input(1, 40);
       if (data.getUint32(0, true) !== 0x31505348) throw new Error('Unexpected RP2040 firmware');
       const version = data.getUint32(4, true);
-      if (![0x10003, 0x10004, 0x10005].includes(version)) throw new Error('Install a supported RP2040 bridge v1.3, v1.4 or v1.5 UF2 for browser readback');
+      if (![0x10003, 0x10004, 0x10005, 0x10006].includes(version)) throw new Error('Install a supported RP2040 bridge v1.3, v1.4, v1.5 or v1.6 UF2 for browser readback');
       return {version: `${version >>> 16}.${version & 0xffff}`, flags: data.getUint32(8, true), tx: data.getUint32(24, true), faults: data.getUint32(28, true), baudRate: data.getUint32(12, true)};
     }
     async open() {
@@ -246,11 +246,15 @@
       if (!this.device.configuration) await this.device.selectConfiguration(1);
       await this.device.claimInterface(4);
       const status = await this.status();
-      // Select three-byte headers before opening CDC, including after a Python
-      // session selected the 826x backend. Busy CDC/capture is rejected by firmware.
-      if (status.version === '1.5') {
-        await this.output(0x21, 3);
-        if ((await this.input(0x21, 4)).getUint32(0, true) !== 3) throw new Error('SWS address width did not verify');
+      // Read first: v1.5 rejects even a no-op SET after legacy activation.
+      // A real framing change still requires an idle bridge on v1.5/v1.6.
+      if (['1.5', '1.6'].includes(status.version)) {
+        const width = (await this.input(0x21, 4)).getUint32(0, true);
+        if (![2, 3].includes(width)) throw new Error('Invalid SWS address width');
+        if (width !== 3) {
+          await this.output(0x21, 3);
+          if ((await this.input(0x21, 4)).getUint32(0, true) !== 3) throw new Error('SWS address width did not verify');
+        }
       }
       return status;
     }
