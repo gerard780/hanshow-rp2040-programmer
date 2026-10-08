@@ -53,3 +53,22 @@ Offline checks:
 Tests cover factory boundaries, write gating, live mismatches, ignored erases,
 partial-program recovery, failed-recovery halt and backup-only operation.
 Simulation checks do not physically validate the combined public v1.5 UF2.
+
+## Legacy `Flash status 0xff` report
+
+On the known `026255` / `eb6013` path, the unmodified vendored flasher's
+`FlashReady()` does not launch the SPI status read. Its `0xff` timeout can occur
+while correct status reads report a ready, protected flash. The guarded
+`flash_backend.py` implements the corrected path: status opcodes `0x05` and
+`0x35`, an initial response clock and SPI auto-read mode. Unlock uses the
+MID1360EB driver's two-byte status write and clears only BP mask `0x407c`,
+preserving other status bits and restoring the saved protection afterward.
+Do not bypass the timeout or replace the whole status register blindly.
+
+A physical original-byte sector test passed using the exact public v1.5 UF2;
+see [validation](../../docs/VALIDATION.md). `write_validation.py` verifies this
+write path with backups and restoration; it does not install
+`application-padded.bin`. `flash_backend.py` is the sector API for a guarded
+installer, not a standalone image-flashing command. Installing a different
+437 application still requires a complete same-tag backup, application-only
+erases, sector zero last and verification of the entire expected flash.

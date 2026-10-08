@@ -85,3 +85,36 @@ full-image downloads, a mismatch inside the reported `0x035000` block,
 cancellation, cleanup and standalone HTML operation. The revised browser still
 needs physical validation on the affected tag; these checks do not establish
 that the reported failure is resolved.
+
+## Physical v1.5 write investigation — 8 October 2026
+
+The exact published v1.5 UF2 (`845d574f...dc0e7d`) was installed on the idle
+bench RP2040-Zero and tested with one `026255` / `eb6013` tag. The unmodified
+vendored `FlashReady()` repeatedly printed `Timeout! Flash status 0xff!`.
+Correct SPI reads repeatedly returned SR1 `0x2c`, SR2 `0x00` on that specimen.
+The legacy routine sends status opcode `0x05` but does not clock its response
+or configure the SPI auto-read path; it does not obtain a valid status byte.
+
+Using the existing guarded `flash_backend.py`, two fresh complete 512 KiB
+backups matched. One nonzero-address 4 KiB sector was erased and restored to
+its original bytes three times: once with 64-byte programs at 921600 baud and
+twice with native status reads and 256-byte programs at 2 Mbaud. Each erase
+was checked for all-FF contents, each rewrite verified, and the final complete
+flash matched the original backups. Original protection `0x002c` and CPU reset
+were restored, with no added transport faults. Native operations took 1.176 s
+and 1.162 s, excluding full backups and activation. This selected sector
+contained zero bytes; no claim of all-byte-pattern hardware coverage is made.
+The programmer remains on the published v1.5 UF2. Full 437 application
+installation, the 437 display driver and other specimens remain untested.
+
+A separate v1.5 host issue was reproduced after the preceding serial session:
+unconditionally setting an already-correct three-byte address width stalls
+because the firmware keeps SWS active across legacy DTR transitions. The
+known-chip helper now reads the width first and avoids that unnecessary SET.
+The host change passed the physical reconnect/write sequence. Real changes
+from two-byte framing still require an idle bridge; this change does not
+relax the firmware's active-session guard. Regression tests cover this case,
+malformed width replies and the legacy/native status-read discrepancy.
+
+The vendor reader and UF2 remain unchanged. Private captures, device identity,
+and bench-only orchestration are excluded from the public package.

@@ -97,7 +97,7 @@ class ValidationTests(unittest.TestCase):
                 stack.enter_context(patch.object(validation.time, "sleep"))
                 stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
                 code = validation.main()
-            self.assertEqual(device.ctrl_transfer.call_args_list[0].args[:4], (0x40, 0x21, 3, 0))
+            self.assertEqual(device.ctrl_transfer.call_args_list[0].args[:4], (0xc0, 0x21, 0, 0))
             result = json.loads((output / "validation.json").read_text())
             self.assertEqual((output / "before-1.bin").read_bytes(), original)
             self.assertEqual((output / "before-2.bin").read_bytes(), original)

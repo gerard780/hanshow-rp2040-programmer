@@ -79,6 +79,14 @@ def select_825x_width(device):
     # The known-chip tools use three-byte headers; restore them after a broad
     # reader session selected 826x. Older bench bridges have fixed framing.
     if bridge_status(device)["version"] == "1.5":
+        width = bytes(device.ctrl_transfer(0xC0, 0x21, 0, 0, 4, timeout=2000))
+        if len(width) != 4 or struct.unpack("<I", width)[0] not in (2, 3):
+            raise RuntimeError("Invalid SWS address-width response")
+        if struct.unpack("<I", width)[0] == 3:
+            return
+        # v1.5 keeps SWS active across DTR transitions for legacy activation.
+        # An unnecessary SET after a previous session stalls even when the
+        # requested width is unchanged. Read first; change only if required.
         device.ctrl_transfer(0x40, 0x21, 3, 0, b"", timeout=2000)
         width = bytes(device.ctrl_transfer(0xC0, 0x21, 0, 0, 4, timeout=2000))
         if len(width) != 4 or struct.unpack("<I", width)[0] != 3:
