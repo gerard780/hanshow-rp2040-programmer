@@ -1,3 +1,24 @@
+# Temporary browser recovery 2026-10-13.4
+
+A separate temporary support page recovers the interrupted tag directly in the
+browser. The user selects the original backup and can keep the original firmware,
+install included D9, or select another application `.bin`. Report fields and
+recovery speed are preset; backup/programmer/tag guards use hashes. No customer
+backup, full report, raw device identifier, backend or upload is included.
+
+The original image and protection verify before the optional application stage;
+the CPU stays halted across both stages and resets only after final full-image
+and protection verification. Both stages use conservative 64-byte programming at
+921600 baud. Users disconnect GP2 from RST before serial connection to prevent
+host-driver reset pulses. Existing RP2040 v1.6 firmware is unchanged.
+
+Validation: eight new recovery state cases and Chromium end-to-end support-page
+checks, including actual included D9, custom firmware, original-only restoration,
+wrong backup/hardware, failed restoration/protection and one final reset. Existing
+protocol and Chromium read/write/discovery and dumper-only tests passed. Physical
+use remains unverified. The included D9 matches the latest gist revision
+`e2c08f926a6be2b5d51863aea84e235d94b46cfe`.
+
 # Web tools 2026-10-13.3 — serial acknowledgements and original-backup recovery
 
 Browser writes on an unstable serial link could fail sector verification and leave stale serial bytes that disrupted recovery. This update acknowledges each 60-byte encoded chunk, resynchronizes before recovery and protection restoration, and records attempted sectors and mismatch diagnostics. Browser writes require 1.5 Mbaud or 921600 baud, selected before opening the SWS port; 2 Mbaud remains available for readback and read-only checks.

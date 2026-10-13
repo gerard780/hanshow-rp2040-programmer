@@ -223,6 +223,10 @@
       before = await flash.fullRead('Reading tag (pass 1)', signal, progress);
       const second = await flash.fullRead('Reading tag (pass 2)', signal, progress);
       requireValue(equal(before, second) && !before.every(byte => byte === 0) && !before.every(byte => byte === 255), 'Fresh full backups differ or are inconclusive; writes refused');
+      if (options.expectedBackupSha256) requireValue(await digest(before) === options.expectedBackupSha256,
+        'Tag contents changed after original-image recovery; application writes refused');
+      if (options.expectedFlashUidSha256) requireValue(await digest(uid) === options.expectedFlashUidSha256,
+        'Target changed after original-image recovery; application writes refused');
       if (binary) plan = await prepareFromBinary(binary.application, before);
       const order = await checkBackup(plan, before);
       report.firmwareSha256 = plan.meta.firmware_sha256;
@@ -251,7 +255,7 @@
           requireValue(equal(await reader.read(0x602, 1), Uint8Array.of(5)), 'CPU no longer halted');
           touched.push(offset); // recovery includes a partial erase/program
           event('sector_attempted', {offset});
-          await flash.writeSector(offset, plan.expected.subarray(offset, offset + SECTOR), before.subarray(offset, offset + SECTOR));
+          await flash.writeSector(offset, plan.expected.subarray(offset, offset + SECTOR), before.subarray(offset, offset + SECTOR), !!options.conservative);
           report.writtenSectors.push(offset); event('sector_verified', {offset});
           progress({phase: 'Programming', done: (index + 1) * SECTOR, total: order.length * SECTOR});
         }

@@ -255,3 +255,36 @@ rejection and a partial recovery failure without reset. It uses the existing
 conservative 64-byte/921600 baud backend and adds complete-backup/failed-report
 identity guards. The recovery command itself has no physical hardware test.
 No field-report device identifiers or private backups are published.
+
+## Temporary browser recovery — revision 2026-10-13.4
+
+A separate standalone support page restores an interrupted 437 application from
+its original full backup and can install included D9 or a supplied `.bin` in the
+same session. The page is bound to hashed programmer/tag identifiers and the
+failed report's original-backup SHA256. It publishes no customer backup or full
+report and has no backend/uploads. Included D9 is pinned to gist revision
+`e2c08f926a6be2b5d51863aea84e235d94b46cfe`, binary SHA256
+`dbec2a8f371a3638bbfc85b39ad94f0a8192d719db7e7a38b86939a32c68d06f`.
+
+The recovery activation path halts the CPU without pulsing RST or writing the
+reset register. GP2 must be disconnected before the serial port opens to avoid
+host-driver control-line resets. Both stages use 921600 baud and 64-byte programs.
+The first stage restores and verifies the complete original image/protection
+without restarting; the second uses fresh matching reads and matching original
+backup/target hashes before application writes. The only successful reset is
+after final complete-image and protection verification. Failed new-app writes
+use the restored original as their rollback image.
+
+Eight recovery state cases cover backup/report guards, dry checks without
+mutations/reset, wrong hardware/current reads/factory-data rejection, original
+restoration, combined installation without an intermediate reset, cancelled or
+failed recovery, original-image rollback on new-app failure, and failed
+protection preventing the second stage/reset. Target settle timers are shortened
+in simulations; this does not model physical timing. Existing browser protocol
+cases remain passing.
+
+Chromium tests exercise the actual standalone page with included D9 and a custom
+application, original-only restoration, wrong backup/programmer/tag rejection,
+failed restore/protection, fixed speed, no reset during checks, one final reset,
+full expected-image equality, report downloads, mobile layout and no companion
+network resources. Physical browser recovery/installation remains unverified.

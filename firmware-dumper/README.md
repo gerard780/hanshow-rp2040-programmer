@@ -225,3 +225,25 @@ The recovery command uses 921600 baud and 64-byte programs, never overwrites fac
 data, and requires full-image equality and restored protection before CPU reset.
 Software simulation is the validation for these changes; successful physical
 browser installation/recovery remains unverified. The RP2040 v1.6 UF2 is unchanged.
+
+## Temporary browser recovery page (2026-10-13.4)
+
+`support/template.html`, `support/config.js`, `support/firmware.js` and
+`support/app.js` build a separate personal support page. It includes pinned D9,
+a supplied-application option and original-only restoration; the user selects
+one original backup, uses fixed recovery timing and never invokes Python or
+selects a report file. The support configuration stores hashes for matching
+the reported backup/programmer/tag; raw identifiers and backup bytes are not
+published. Its GitHub Pages URL is public, temporary and excluded from indexing.
+
+`recovery.js` restores the original 128 KiB region after matching complete current
+reads, rejects changed factory data, verifies all 512 KiB against the original
+backup and restores exact original protection. Optional new-app installation
+keeps the CPU halted across both stages. Successful restart occurs after final
+image/protection verification. Opening a serial port can toggle reset, so the
+user must disconnect GP2 from RST before connecting. Both stages use 921600 baud
+and conservative 64-byte programs. The existing RP2040 v1.6 UF2 is unchanged.
+
+Run `node --test firmware-dumper/tests/recovery.test.cjs` for recovery transaction
+checks and `tests/recovery-smoke.cjs` with Playwright for the support-page flows.
+Successful physical recovery remains unverified. See [recovery](../docs/RECOVERY.md).

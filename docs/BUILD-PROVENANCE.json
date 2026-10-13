@@ -8,21 +8,26 @@
     "CMakeLists.txt": "4f104ec63bb41b9d32d7b0d1093b5cc5e8b1c29449669c67122d8b607d2f9e6e",
     "readback.py": "975cc20b6f4d8b2b899a2c5f6884eb0fd219f990aab1b365e9ee605e6c857d16",
     "benchmark_readback.py": "db45b4242f76da6856c92551143c47394dd08b37416e712618718d1e4db247e0",
-    "firmware-dumper/sws.js": "97043700efca8fe99ccc6ec5dc11424bf81edb77bbc36431db1d87f4f6c0832b",
+    "firmware-dumper/sws.js": "aba745663d29fb906a2d3dfd53644b036a984ff4ec7108397e85ba03ca33143d",
     "tools/speed/flash_backend.py": "b1be13ef8c37d944f6ee4acc7fc62ceff63ac804a23ccffe110f26bf9712b5cf",
     "tools/speed/write_validation.py": "bcd4faba70930438e3b977354d1a4fd02fc825667feb28883c86b23dd1ee6139",
     "flash_application.py": "232e6e986886f12f19bbad159700e5680f6107f7232c67bce759cc9b857d4226",
     "tools/speed/application_install.py": "77513fdf618cd443df5543856782b69e42aea80c065535714232e55467fafa41",
-    "firmware-dumper/flash.js": "73b50078f3f8093de1958577fb45280a8965c7cbfb8562ef180245aa60c0dae5",
+    "firmware-dumper/flash.js": "a9a54a8a1ad4ffbf6c656a02261031169e6d8197d54ba6eb1768f5e54a06c1d4",
     "firmware-dumper/app.js": "30e5298b011736e4f9bd5ca3fb10bb0295885b7449e099ff52e9ab266951ab30",
-    "firmware-dumper/build_standalone.py": "cb7b4e98e643568d26fae3cd4d0c316d54143101b23f620bf49fc1f65e38e71a",
+    "firmware-dumper/build_standalone.py": "441fa0d6f3aa5feb01d38adecde4c41c574d46006ada10e77d02761dff2b0e12",
     "firmware-dumper/discovery.js": "9dbd971507227b59457c7bcb33625930109f7b0be84c3140ed191c9e06f9081c",
     "firmware-dumper/discovery-ui.js": "91842796ee349abec9172d26915cab8e56250b3d5df78521d5116ed377b56ca3",
     "firmware-dumper/dumper-app.js": "6a5d72e4255baa077774a6943802bd85ea17bc4a99412b14abf03da4c512ca98",
-    "firmware-dumper/dumper.template.html": "bf429cef89b1bad5d402994d8b352ef3f8325fc39611d2a4edfb7c474de8e590",
-    "firmware-dumper/index.template.html": "9b067e52b349c30f9b41e6184e12ff6b5d87d0bb7ce8fcd02ab8cf61c59d7e98",
+    "firmware-dumper/dumper.template.html": "667081c492e426a8c0b166767f7f2a97c29a9877d26f7d92aceaa4e95bd3f9ba",
+    "firmware-dumper/index.template.html": "f41c916c6d745bc515a5afb34fcaf1cb2baea98ead3c44116f07dd5b61fdc342",
     "recover_application.py": "609e18ac601171e4f8a1c706553e76fe692a6284cb6213d58a1c16208545112f",
-    "tools/speed/application_recover.py": "9ba63c34f7f0945998d0fd5c3deec4146810ec4b2d77129ede674b246c6cad2e"
+    "tools/speed/application_recover.py": "9ba63c34f7f0945998d0fd5c3deec4146810ec4b2d77129ede674b246c6cad2e",
+    "firmware-dumper/recovery.js": "2911c813d53e365d9e2771f9f767ae3967020c4ff67082d4237c1a25bb5d8b0b",
+    "firmware-dumper/support/template.html": "9706ce7c31d2d855647289b7171aa6f16aedfefc2dd13e258071d27c742bca1f",
+    "firmware-dumper/support/config.js": "75223207b8aede0ee12e1d6ac2ddec1fd99cbf00c3f61267685009fe162225f8",
+    "firmware-dumper/support/firmware.js": "c4f932a63fca0a22d29cf1c84d0de1f31a16ae67766890d7f2890b2def65b407",
+    "firmware-dumper/support/app.js": "5f75a2cc507ca7fc177245d93d0158eee3ef6bcdabbab7b62ae4e4bad0e70398"
   },
   "upstream_readers": [
     {
@@ -45,9 +50,17 @@
   "uf2_sha256": "55a226a09190eaf8bae327b0671f9c1d1d261f7001a51e233e2f23a95c454a51",
   "origin": "Public v1.6 adds idempotent SWS address selection to v1.5, matching host/browser version support and a guarded prepared-application installer using the corrected SPI status backend.",
   "scope": "No tag firmware dumps are included.",
-  "web_tool_revision": "2026-10-13.3",
+  "web_tool_revision": "2026-10-13.4",
   "web_pages": {
     "dumper_only": "docs/index.html",
-    "read_write_discovery": "docs/tools/index.html"
+    "read_write_discovery": "docs/tools/index.html",
+    "temporary_support": "docs/support/recovery-437-6f3d8a/index.html"
+  },
+  "support_application": {
+    "name": "EXPERIMENTAL_ATC_Nebular_437_D9_discovery.bin",
+    "sha256": "dbec2a8f371a3638bbfc85b39ad94f0a8192d719db7e7a38b86939a32c68d06f",
+    "bytes": 124964,
+    "gist": "https://gist.github.com/gerard780/92feab930abb5c7cd4f30b419c8dbc4d",
+    "gist_revision": "e2c08f926a6be2b5d51863aea84e235d94b46cfe"
   }
 }

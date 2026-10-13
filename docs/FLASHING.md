@@ -27,7 +27,7 @@ SWS port. 2 Mbaud remains available for readback and Check firmware. Serial chun
 are acknowledged individually; recovery clears interrupted framing and stale
 receive bytes before verifying the halted CPU and target UID. Recovery retains
 the selected baud because reopening the serial port can toggle reset. If recovery
-fails, use the [original-backup recovery command](RECOVERY.md) after saving the
+fails, use the [original-backup recovery instructions](RECOVERY.md) after saving the
 emergency original backup and failed-install report. A normal installation is
 not a recovery of the original image.
 

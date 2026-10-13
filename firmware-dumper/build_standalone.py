@@ -12,7 +12,9 @@ ROOT = HERE.parent
 BUILDS = (("index.template.html", ("sws.js", "flash.js", "discovery.js", "discovery-ui.js", "app.js"),
            (HERE / "index.html", ROOT / "docs/tools/index.html")),
           ("dumper.template.html", ("sws.js", "dumper-app.js"),
-           (HERE / "read-only.html", ROOT / "docs/index.html")))
+           (HERE / "read-only.html", ROOT / "docs/index.html")),
+          ("support/template.html", ("support/config.js", "support/firmware.js", "sws.js", "flash.js", "recovery.js", "support/app.js"),
+           (ROOT / "docs/support/recovery-437-6f3d8a/index.html",)))
 
 
 def bundle(template="index.template.html", sources=("sws.js", "flash.js", "discovery.js", "discovery-ui.js", "app.js")):
@@ -57,7 +59,7 @@ def main():
             else:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(content)
-        print(f"{'Verified' if args.check else 'Built'} {template}: {len(content)} bytes; CSS, JavaScript and UF2 included")
+        print(f"{'Verified' if args.check else 'Built'} {template}: {len(content)} bytes; browser resources included")
 
 
 

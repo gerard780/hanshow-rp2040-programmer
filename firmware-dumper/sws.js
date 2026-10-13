@@ -4,7 +4,7 @@
  */
 (function (root) {
   'use strict';
-  const revision = '2026-10-13.3';
+  const revision = '2026-10-13.4';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const equal = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -166,16 +166,16 @@
       }
       return out;
     }
-    async activate({activationMs = 3000, pulseReset = false, signal} = {}) {
+    async activate({activationMs = 3000, pulseReset = false, haltOnly = false, signal} = {}) {
       if (!Number.isInteger(activationMs) || activationMs < 100 || activationMs > 10000) throw new Error('Activation must be 100–10000 ms');
       check(signal);
-      if (pulseReset) {
+      if (pulseReset && !haltOnly) {
         await this.io.port.setSignals({dataTerminalReady: true, requestToSend: true});
         await sleep(100);
         await this.io.port.setSignals({dataTerminalReady: false, requestToSend: false});
       }
-      this.log('Stopping the CPU and calibrating SWS…');
-      await this.io.send(writePacket(0x6f, [0x20]), false);
+      this.log(haltOnly ? 'Pausing the tag for recovery without resetting it…' : 'Stopping the CPU and calibrating SWS…');
+      if (!haltOnly) await this.io.send(writePacket(0x6f, [0x20]), false);
       const deadline = performance.now() + activationMs;
       while (performance.now() < deadline) {
         check(signal);
@@ -205,7 +205,7 @@
           if (signal?.aborted || this.io.error || error.message.startsWith('Unsupported chip')) throw error;
         }
       }
-      throw new Error('SWS calibration failed. Check wiring, power and activation time; try resetting the tag');
+      throw new Error(haltOnly ? 'Recovery communication failed. Keep the tag powered and retain the original backup; do not reset the tag' : 'SWS calibration failed. Check wiring, power and activation time; try resetting the tag');
     }
     async spiRead(command, count, signal, readData = this.read.bind(this)) {
       await this.reg(0xb3, [0x80]);
@@ -299,6 +299,7 @@
 
   class RP2040Reader extends Reader {
     constructor(io, bridge, log, baudRate = 921600) { super(io, log, baudRate); this.bridge = bridge; this.blockSize = 4096; }
+    activateRecovery(options = {}) { return this.activate({...options, pulseReset: false, haltOnly: true}); }
     async resynchronize() {
       if (!this.paired) throw new Error('Cannot resynchronize an unpaired programmer');
       await this.bridge.output(0x12); await sleep(60);

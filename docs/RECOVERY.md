@@ -1,5 +1,33 @@
 # Recover an interrupted browser installation
 
+## Temporary browser recovery page
+
+If Gerard sent you a temporary recovery link, use that page. It is set up for the
+failed-install report and checks the original backup, programmer and tag. No
+Python, commands, report-file picker or speed settings are needed.
+
+1. Select the complete original backup `.bin` from before the failed installation.
+2. Choose included D9, another application `.bin`, or original firmware only.
+3. Disconnect GP2 from tag RST, keep the other wires and power connected, and use
+   the two connection buttons on the page.
+4. Click **Check my tag**, then the green recovery button after the check passes.
+
+The page restores and verifies the original image before installing a chosen
+application. It keeps the CPU halted through both stages and restarts only after
+the final image and protection settings verify. Recovery uses conservative
+64-byte programs at 921600 baud automatically. Keep the page and power connected
+until completion; if it stops, save its report and send it to Gerard.
+
+The included D9 is pinned to the source gist revision recorded in the page's
+firmware metadata. Customer backup bytes and full reports are not hosted. Device
+matching uses hashed identifiers. Temporary support URLs are public GitHub Pages
+links with indexing disabled; they are not an access-controlled service.
+Software/browser simulations passed. Physical use of this recovery flow remains
+unverified. RP2040 v1.6 remains sufficient.
+
+<details>
+<summary>Optional Python recovery for advanced users</summary>
+
 Use `recover_application.py` when an application installation fails, recovery
 does not verify, and the browser reports that the CPU was kept halted. This
 command restores the original application from the complete pre-install backup.
@@ -58,3 +86,5 @@ sector verified, and the entire 512 KiB flash must match the original backup.
 The exact original protection value from the failed report must verify before
 the CPU reset command. A failed recovery keeps the CPU halted and records the
 error in `recovery-report.json`; retain the original backup and capture directory.
+
+</details>
