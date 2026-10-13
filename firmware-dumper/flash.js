@@ -1,11 +1,14 @@
 /* Guarded application installation over the existing v1.6 SWS transport.
- * No mass erase or writes at/above 0x20000. Prepared same-tag plans only.
+ * No mass erase or writes at/above 0x20000. Plans are built from fresh same-tag reads or supplied explicitly.
  */
 (function (root) {
   'use strict';
   const dump = typeof module !== 'undefined' && module.exports ? require('./sws.js') : root.FirmwareDump;
   const {equal, hex} = dump;
   const SECTOR = 4096, PAGE = 256, LIMIT = 0x20000, SIZE = 524288;
+  const D9_HEADER = Object.freeze([0x44,0x39,0x4a,0x52,1,32,127,0,0,0xf0,1,0,0,0x10,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0xa1,0xb5,0x3d,0xaf]);
+  const JOURNAL_ADDRESS = 0x1f000;
+  const matchesJournalHeader = (bytes, offset) => D9_HEADER.every((value, i) => bytes[offset + i] === value);
   const requireValue = (condition, message) => { if (!condition) throw new Error(message); };
   const digest = async data => hex(new Uint8Array(await crypto.subtle.digest('SHA-256', data)));
   const cancelled = signal => { if (signal?.aborted) throw new DOMException('Installation cancelled', 'AbortError'); };
@@ -16,6 +19,59 @@
       for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
     }
     return (crc ^ 0xffffffff) >>> 0;
+  }
+  async function validateBinary(input, {allowJournalRecords = false} = {}) {
+    const bytes = Uint8Array.from(input);
+    requireValue(bytes.length >= 32 && bytes.length <= LIMIT, 'Select an application .bin of 32 to 131072 bytes; full tag dumps and UF2 files are not supported');
+    const view = new DataView(bytes.buffer), length = view.getUint32(24, true);
+    const paddedLength = Math.ceil(length / SECTOR) * SECTOR;
+    requireValue(hex(bytes.subarray(8, 12)) === '4b4e4c54' && length >= 32 && length <= bytes.length && paddedLength <= LIMIT,
+      'Invalid application header or length');
+    requireValue(view.getUint32(length - 4, true) === ((crc32(bytes.subarray(0, length - 4)) ^ 0xffffffff) >>> 0), 'Application checksum invalid');
+    // D9 embeds its exact, CRC-covered journal descriptor in the firmware.
+    // Recognize that descriptor only when code ends before its reserved sector.
+    let descriptors = 0;
+    if (length <= JOURNAL_ADDRESS) for (let i = 0; i <= length - D9_HEADER.length; i++) {
+      if (bytes[i] === 0x44 && matchesJournalHeader(bytes, i)) descriptors++;
+    }
+    const journal = descriptors === 1;
+    const outputLength = journal ? LIMIT : paddedLength;
+    requireValue(bytes.length === length || bytes.length === paddedLength || (journal && bytes.length === LIMIT),
+      'Unexpected bytes after application; use a raw or FF-padded application .bin');
+    requireValue(bytes.subarray(length, journal ? JOURNAL_ADDRESS : bytes.length).every(byte => byte === 255),
+      'Unexpected application padding');
+    const application = new Uint8Array(outputLength); application.fill(255); application.set(bytes.subarray(0, length));
+    if (journal) {
+      if (bytes.length === LIMIT && !bytes.subarray(JOURNAL_ADDRESS).every(byte => byte === 255)) {
+        requireValue(matchesJournalHeader(bytes, JOURNAL_ADDRESS), 'Invalid D9 journal header');
+        requireValue(allowJournalRecords || bytes.subarray(JOURNAL_ADDRESS + D9_HEADER.length).every(byte => byte === 255),
+          'Do not distribute a captured per-tag journal; choose the application binary');
+        application.set(bytes.subarray(JOURNAL_ADDRESS), JOURNAL_ADDRESS);
+      } else application.set(D9_HEADER, JOURNAL_ADDRESS);
+    }
+    return {kind: 'single-bin', application, firmwareBytes: length, firmwareSha256: await digest(bytes.subarray(0, length)), discoveryJournal: journal};
+  }
+
+  async function prepareFromBinary(input, before) {
+    const binary = await validateBinary(input); before = Uint8Array.from(before);
+    requireValue(before.length === SIZE && !before.every(byte => byte === 0) && !before.every(byte => byte === 255), 'Expected a complete nonblank same-tag snapshot');
+    const application = binary.application, expected = before.slice();
+    let journalAction = null;
+    if (binary.discoveryJournal) {
+      journalAction = matchesJournalHeader(before, JOURNAL_ADDRESS) ? 'preserved' : 'initialized';
+      if (journalAction === 'preserved') application.set(before.subarray(JOURNAL_ADDRESS, LIMIT), JOURNAL_ADDRESS);
+    }
+    expected.set(application);
+    const order = [];
+    for (let offset = SECTOR; offset < application.length; offset += SECTOR) {
+      if (!equal(before.subarray(offset, offset + SECTOR), expected.subarray(offset, offset + SECTOR))) order.push(offset);
+    }
+    if (!equal(before.subarray(0, SECTOR), expected.subarray(0, SECTOR))) order.push(0);
+    const meta = {hardware_access: false, write_start: 0, write_bytes: application.length, sector_size: SECTOR,
+      preserve_start: application.length, preserve_end: SIZE, backup_sha256: await digest(before),
+      firmware_sha256: binary.firmwareSha256, expected_full_flash_sha256: await digest(expected), sectors_in_write_order: order,
+      discovery_journal: journalAction ? {address: JOURNAL_ADDRESS, bytes: SECTOR, action: journalAction} : null};
+    return validatePlan(meta, application, expected, before.subarray(0, application.length));
   }
   async function validatePlan(meta, application, expected, recovery) {
     // Own copies: callers cannot alter the checked image during an await.
@@ -29,13 +85,8 @@
     requireValue(expected.length === SIZE && recovery.length === application.length, 'Incomplete expected/recovery image');
     requireValue(await digest(expected) === meta.expected_full_flash_sha256 && equal(application, expected.subarray(0, application.length)),
       'Expected image differs from application plan');
-    const view = new DataView(application.buffer);
-    const length = view.getUint32(24, true);
-    requireValue(hex(application.subarray(8, 12)) === '4b4e4c54' && length >= 32 && length <= application.length &&
-      Math.ceil(length / SECTOR) * SECTOR === application.length, 'Invalid application header or length');
-    requireValue(await digest(application.subarray(0, length)) === meta.firmware_sha256 &&
-      view.getUint32(length - 4, true) === ((crc32(application.subarray(0, length - 4)) ^ 0xffffffff) >>> 0) &&
-      application.subarray(length).every(byte => byte === 255), 'Application hash, checksum or padding invalid');
+    const binary = await validateBinary(application, {allowJournalRecords: true});
+    requireValue(binary.firmwareSha256 === meta.firmware_sha256 && equal(binary.application, application), 'Application hash or padding invalid');
     return {meta, application, expected, recovery};
   }
   async function checkBackup(plan, before) {
@@ -134,11 +185,14 @@
     }
   }
   async function installApplication(reader, plan, options = {}) {
-    const {signal, progress = () => {}, saveBackup, apply = false, onEvent = () => {}} = options;
-    // Revalidate a private copy each session, before any hardware operation.
-    plan = await validatePlan(plan.meta, plan.application, plan.expected, plan.recovery);
+    const {signal, progress = () => {}, saveBackup, saveRecoveryBackup = true, apply = false, onEvent = () => {}} = options;
+    // Revalidate an owned copy before any hardware operation. A single binary
+    // becomes a per-tag plan only after two complete matching live reads.
+    const binary = plan instanceof Uint8Array ? await validateBinary(plan) :
+      plan?.kind === 'single-bin' ? await validateBinary(plan.application) : null;
+    plan = binary ? null : await validatePlan(plan.meta, plan.application, plan.expected, plan.recovery);
     const flash = new FlashSession(reader), touched = [];
-    const report = {webFlasherRevision: dump.revision, apply, verified: false, writtenSectors: [], cpuResetVerified: false, events: []};
+    const report = {webFlasherRevision: dump.revision, apply, inputMode: binary ? 'single-bin' : 'prepared-plan', backupRequested: saveRecoveryBackup, backupSaved: false, verified: false, writtenSectors: [], cpuResetVerified: false, events: []};
     const event = (name, details = {}) => {
       report.events.push({event: name, ...details});
       // UI/logging failures must not interrupt preservation or recovery.
@@ -159,19 +213,27 @@
       const protection = await flash.status();
       requireValue([0x2c, 0x382c].includes(protection), 'Unknown protection layout');
       Object.assign(report, identity, {jedecId: 'eb6013', flashUid: hex(uid), protectionOriginal: protection, bridgeVersion: bridge.version});
-      before = await flash.fullRead('Backup read 1', signal, progress);
-      const second = await flash.fullRead('Backup read 2', signal, progress);
+      before = await flash.fullRead('Reading tag (pass 1)', signal, progress);
+      const second = await flash.fullRead('Reading tag (pass 2)', signal, progress);
       requireValue(equal(before, second) && !before.every(byte => byte === 0) && !before.every(byte => byte === 255), 'Fresh full backups differ or are inconclusive; writes refused');
+      if (binary) plan = await prepareFromBinary(binary.application, before);
       const order = await checkBackup(plan, before);
+      report.firmwareSha256 = plan.meta.firmware_sha256;
+      report.applicationBytes = plan.application.length;
+      report.discoveryJournal = plan.meta.discovery_journal;
       await reader.verifyTransport();
       report.backupSha256 = await digest(before); report.plannedSectors = order;
       event('plan_verified', {sectors: order.length});
       cancelled(signal);
-      requireValue(typeof saveBackup === 'function', 'Choose a recovery backup file before flashing');
-      // Callback must commit and reread the file, returning its persisted hash.
-      const persisted = await saveBackup(before.slice(), {...report});
-      requireValue(persisted === report.backupSha256, 'Saved recovery backup did not verify; writes refused');
-      report.backupSaved = true; event('recovery_backup_saved');
+      if (saveRecoveryBackup) {
+        requireValue(typeof saveBackup === 'function', 'Choose a recovery backup file before flashing');
+        // Callback must commit and reread the file, returning its persisted hash.
+        const persisted = await saveBackup(before.slice(), {...report});
+        requireValue(persisted === report.backupSha256, 'Saved recovery backup did not verify; writes refused');
+        report.backupSaved = true; event('recovery_backup_saved');
+      } else {
+        report.recoveryStorage = 'browser memory only'; event('recovery_backup_not_saved');
+      }
       cancelled(signal);
       if (apply && order.length) {
         requireValue(equal(uid, await flash.spi([0x4b, 0, 0, 0, 0], 16)), 'Target changed before unlock');
@@ -234,11 +296,15 @@
     report.verified = !failure && imageVerified && protectionVerified && report.cpuResetVerified;
     if (failure || !report.verified) {
       failure ||= new Error('Installation cleanup or recovery did not verify');
-      failure.report = report; throw failure;
+      failure.report = report;
+      // If the user skipped saving and recovery failed, keep the original
+      // snapshot available for an explicit emergency download in this session.
+      if (before && report.cpuKeptHalted && !report.backupSaved) failure.recoveryBackup = before.slice();
+      throw failure;
     }
     return report;
   }
-  const api = {validatePlan, checkBackup, FlashSession, installApplication, digest, crc32};
+  const api = {D9_HEADER, validateBinary, prepareFromBinary, validatePlan, checkBackup, FlashSession, installApplication, digest, crc32};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FirmwareFlash = api;
 })(globalThis);

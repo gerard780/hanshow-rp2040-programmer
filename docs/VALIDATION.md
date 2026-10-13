@@ -184,3 +184,44 @@ companion network resources are checked. Physical browser writes, Windows
 hardware, and complete 437 application/display behavior remain untested;
 no bench devices were modified for this browser release. The earlier v1.6
 Python write evidence does not establish physical WebUSB flashing success.
+
+## Single-bin and optional saved backup — revision 2026-10-13.2
+
+The browser accepts raw and FF-padded KNLT/CRC application files and derives
+the per-tag plan from two new matching 512 KiB reads. Saved recovery backups
+are optional and enabled by default. Skipping the file-save step preserves
+all read/region/blank-check/full-image/protection checks and in-session rollback.
+An unsaved recovery failure retains an original snapshot for emergency download.
+
+The published unified 1.54/2.66 `.bin` (129588 bytes) and experimental 437 v7
+`.bin` (128068 bytes) passed the offline format/CRC validator, padding to the
+128 KiB application limit. This does not physically validate installing them.
+Eight new test cases cover raw/padded equivalence, near-limit sizes, malformed
+files, auto-plan/upper-flash preservation, install/dry run without a saved file,
+default save gating, mismatching reads with saving disabled, memory recovery
+and unsaved failed-recovery snapshot retention. Existing guarded-flashing and
+readback cases remain passing. Chromium UI checks exercise a single arbitrary
+filename, default saved backup, disk-write failure, skipping with no save dialog,
+operation reports and invalid-file rejection. Physical browser writes and full
+437 display behavior remain untested. The RP2040 source/UF2 are unchanged.
+
+## Split URLs and discovery readers — revision 2026-10-13.2
+
+The original GitHub Pages root is dumper-only; the complete read/write/discovery
+page is `/tools/`. Each is separately bundled, self-contained HTML using the
+same unchanged v1.6 UF2. Root Chromium tests confirm flashing/discovery controls
+are absent and backup/mismatch/cancellation/download behavior still works.
+
+Seven discovery cases cover v1/v2 frame offsets/flags/signed temperature,
+status-only Bluetooth requests, synchronous replies, overlap and timed-out/hung
+writes, split UTF8 UART lines, D9 journal header/record CRCs and torn records,
+driver-timeout flags, and D9 journal initialization/preservation. The decoder
+follows the current D9 journal source; driver-timeout bit128 is a valid flag.
+The newly built D9 discovery raw `.bin` passed the actual browser validator and
+its embedded descriptor produced the required 128 KiB application/journal layout.
+
+Full-tools Chromium tests cover status-only BLE reads, UART streaming without
+serial commands/RTS reset, loaded journal records and session export alongside
+single-bin saved/unsaved flashing and emergency backup recovery. These tests
+use simulated devices. Physical browser writes, BLE/UART discovery hardware,
+D9 installation/display behavior and Windows hardware remain untested.

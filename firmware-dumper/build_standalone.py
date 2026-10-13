@@ -9,18 +9,21 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
-OUTPUTS = (HERE / "index.html", ROOT / "docs/index.html")
+BUILDS = (("index.template.html", ("sws.js", "flash.js", "discovery.js", "discovery-ui.js", "app.js"),
+           (HERE / "index.html", ROOT / "docs/tools/index.html")),
+          ("dumper.template.html", ("sws.js", "dumper-app.js"),
+           (HERE / "read-only.html", ROOT / "docs/index.html")))
 
 
-def bundle():
+def bundle(template="index.template.html", sources=("sws.js", "flash.js", "discovery.js", "discovery-ui.js", "app.js")):
     manifest = json.loads((ROOT / "dist/manifest.json").read_text())
     uf2 = (ROOT / "dist/hanshow_pio_bridge.uf2").read_bytes()
     if hashlib.sha256(uf2).hexdigest() != manifest["uf2_sha256"]:
         raise ValueError("Programmer UF2 does not match its manifest")
-    html = (HERE / "index.template.html").read_text()
+    html = (HERE / template).read_text()
     html = html.replace("@@PROGRAMMER_UF2@@", "data:application/octet-stream;base64," + base64.b64encode(uf2).decode("ascii"))
     html = html.replace("@@PROGRAMMER_VERSION@@", manifest["version"])
-    for name in ("sws.js", "flash.js", "app.js"):
+    for name in sources:
         marker = f'<script src="{name}"></script>'
         if html.count(marker) != 1:
             raise ValueError(f"Expected one template script: {name}")
@@ -45,15 +48,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Verify checked-in HTML matches its sources")
     args = parser.parse_args()
-    content = bundle().encode("utf-8")
-    for path in OUTPUTS:
-        if args.check:
-            if not path.exists() or path.read_bytes() != content:
-                raise SystemExit(f"Stale standalone HTML: {path.relative_to(ROOT)}; run {parser.prog}")
-        else:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(content)
-    print(f"{'Verified' if args.check else 'Built'} standalone HTML: {len(content)} bytes; CSS, JavaScript and UF2 included")
+    for template, sources, outputs in BUILDS:
+        content = bundle(template, sources).encode("utf-8")
+        for path in outputs:
+            if args.check:
+                if not path.exists() or path.read_bytes() != content:
+                    raise SystemExit(f"Stale standalone HTML: {path.relative_to(ROOT)}; run {parser.prog}")
+            else:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(content)
+        print(f"{'Verified' if args.check else 'Built'} {template}: {len(content)} bytes; CSS, JavaScript and UF2 included")
+
 
 
 if __name__ == "__main__":

@@ -1,10 +1,37 @@
 # Application flashing on 026255 / EB6013
 
-Use the [browser backup/flashing tool](https://gerard780.github.io/hanshow-rp2040-programmer/)
-or `flash_application.py` from the repository root with the application
-package's `flash-plan.json`. This experimental installer is limited to chip
-`026255`, flash `EB6013`, 512 KiB main flash and known status `0x002c` or
-`0x382c`. Readback supports more chips; writing does not.
+Use the [read/write/discovery tool](https://gerard780.github.io/hanshow-rp2040-programmer/tools/)
+with a **single application `.bin`**, or `flash_application.py` with the
+application package's prepared same-tag plan. Both write paths remain
+experimental and limited to chip `026255`, flash `EB6013`, 512 KiB main flash
+and known status `0x002c` or `0x382c`. Readback supports more chips; writing does not.
+
+## Single-bin browser workflow
+
+Select the application `.bin` supplied for your tag. The browser checks its
+KNLT header/length/CRC and raw or FF-padded form, reads the tag twice, and builds
+the per-tag expected image and recovery plan automatically. No additional
+JSON/files or Python preparation are needed. Raw applications are FF-padded
+locally to whole 4 KiB sectors. Full-flash dumps and RP2040 UF2 files are rejected.
+The format check cannot prove display/board compatibility.
+
+**Save a full recovery backup before flashing** is enabled by default. Uncheck
+it to skip saving a backup file; the two reads required for preservation,
+planning and verification still run. Original bytes stay in memory for
+in-session rollback. With saving enabled, the chosen full backup file must be
+closed, reread and verified before unlock. Check firmware is a dry run; Flash
+application additionally requires the application acknowledgement.
+
+Keep the page/power connected during writes and recovery. When unsaved recovery
+fails, the CPU stays halted and the page offers an emergency original-backup
+download. Save it before closing/reloading the page. Without a saved backup,
+recovery after a closed page or lost power may not be possible. Firmware/backup
+files and operation reports stay local. See [browser instructions](../firmware-dumper/README.md).
+The existing RP2040 v1.6 UF2 is sufficient; no new programmer firmware is needed.
+The original root URL is now dumper-only; flashing and discovery readers are at
+`/tools/`. Raw D9 applications with the exact embedded journal descriptor
+initialize the reserved journal when needed and preserve existing valid-header
+journal contents on reflash. Ordinary applications retain their normal FF padding.
 
 ## Why the older flasher times out
 
@@ -36,20 +63,10 @@ full backups and requires both to match the plan's original-backup hash.
 An old or different tag's plan is rejected before unlock. Prepared files and
 capture directories contain per-tag data; keep them private.
 
-For browser flashing, connect your v1.6 programmer and select these four files
-in the page's application section. Choose **Check plan and save backup** for a
-dry run. For installation, check the application acknowledgement and choose
-**Flash application**, then select a separate recovery backup file to save.
-The browser takes two fresh matching full reads and saves/rereads the backup
-before unlock. It performs the same application-only boundary, blank-sector,
-sector-zero-last and full-image verification checks. It needs desktop
-Chrome/Edge with file-save access, and HTTPS or localhost; the single HTML
-requires no application backend. The existing v1.6 UF2 is sufficient.
-
-Browser recovery uses 64-byte programs and legacy status reads at the selected
-baud. The Python recovery path below additionally switches to 921600 baud.
-Physical browser writes remain untested; protocol and Chromium UI tests use
-simulated devices. Full experimental 437 installation remains untested.
+The four-file preparation above is for the Python installer. Browser users
+select the single application `.bin` directly. Browser recovery uses 64-byte
+programs and legacy status reads at the selected baud; Python recovery below
+also switches to 921600 baud. Physical browser writes remain untested.
 
 From this programmer repository after installing `requirements.txt`:
 

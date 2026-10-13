@@ -1,3 +1,27 @@
+# Web tools 2026-10-13.2 — single `.bin`, optional backup and discovery logs
+
+Recipients can now select one application `.bin`; the browser validates its
+KNLT header/CRC, pads locally and builds the per-tag flash plan from two fresh
+matching full reads. No JSON, auxiliary binaries or Python preparation needed.
+
+Saving a full recovery backup is checked by default and can be unchecked.
+Skipping saving avoids the file dialog and disk backup; preservation reads,
+application-only boundaries, sector-zero-last programming, blank/whole-flash
+verification, protection restoration and memory rollback still run. Failed
+unsaved recovery offers an emergency original snapshot download while open.
+
+The original URL is dumper-only; the complete tool is hosted at `/tools/`.
+Discovery readers display D8/D9 Bluetooth status, live UART logs and validated
+D9 journal history from a saved readback. Only read-only discovery STATUS
+requests are sent. D9 single-bin plans recognize the embedded journal descriptor
+and initialize/preserve its reserved sector.
+
+Existing v1.6 RP2040 firmware is sufficient and unchanged. Single-bin, guarded
+flashing/readback and Chromium UI checks passed. The published unified and 437
+v7 `.bin` formats pass validation; physical browser writes remain untested.
+[Browser instructions](../firmware-dumper/README.md) cover both backup options.
+Rollback is the earlier web release HTML; tag recovery uses its own saved backup.
+
 # Web tool 2026-10-13.1 — application flashing (experimental)
 
 The single HTML now supports guarded application flashing as well as backups.

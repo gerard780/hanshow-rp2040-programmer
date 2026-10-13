@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tag firmware backup and flashing · RP2040</title>
+  <title>Tag read/write/discovery tools · RP2040</title>
   <link rel="icon" href="data:,">
   <style>
     :root {color-scheme:dark; font-family:system-ui,sans-serif; background:#10171b; color:#e8f0f1}
@@ -18,14 +18,14 @@
     button.primary {background:#80e0cc; color:#102621; border-color:#80e0cc; font-weight:650} button:disabled {opacity:.4; cursor:default}
     .actions {display:flex; flex-wrap:wrap; gap:10px; align-items:center} .device {font-size:14px; margin:10px 0 0; overflow-wrap:anywhere}
     progress {width:100%; height:18px; accent-color:#80e0cc; margin-top:15px} #status {font-size:18px; margin:0; color:#e8f0f1}
-    #detail {margin-bottom:0; font-size:14px} #log {white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.6; max-height:260px; overflow:auto}
+    #discovery-log,#journal-log {white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;font-size:12px} #detail {margin-bottom:0; font-size:14px} #log {white-space:pre-wrap; overflow-wrap:anywhere; font-size:12px; line-height:1.6; max-height:260px; overflow:auto}
     #hash {font-size:13px; overflow-wrap:anywhere} .notice {border-left:3px solid #e5ba76; padding-left:14px} [hidden] {display:none !important}
     @media(max-width:650px) {.grid {grid-template-columns:1fr} body {padding:22px 14px} section {padding:18px}}
   </style>
 </head>
 <body><main>
   <div class="eyebrow">OPENEPAPERLINK · RP2040-ZERO</div>
-  <h1>Back up or flash your tag.</h1>
+  <h1>Read, flash and follow discovery.</h1>
   <p>Download every byte of the tag’s main flash, including firmware, settings and calibration data. Install a prepared application while preserving factory data. Everything runs locally in your browser.</p>
   <p id="compatibility" class="notice" hidden></p>
   <section class="grid">
@@ -64,17 +64,40 @@
     <div id="result" hidden><p id="summary"></p><p id="hash"></p><div class="actions"><a id="binary" class="download">Download full flash (.bin)</a><a id="report" class="download">Download backup report (.json)</a></div></div>
   </section>
   <section>
-    <h2>4. Flash a prepared application</h2>
-    <p>Experimental: chip <code>026255</code> with <code>EB6013</code> flash only. Select the four files from your application’s same-tag flash plan: <code>flash-plan.json</code>, <code>application-padded.bin</code>, <code>expected-full-flash.bin</code> and <code>recovery-application.bin</code>.</p>
-    <label>Application plan files <input id="flash-files" type="file" multiple accept=".json,.bin"></label>
-    <p id="plan-status">No application plan selected.</p>
+    <h2>4. Flash an application .bin</h2>
+    <p>Experimental: chip <code>026255</code> with <code>EB6013</code> flash only. Choose the application <code>.bin</code> supplied for your tag. The tool builds its flash plan automatically; no JSON or extra binary files are needed.</p>
+    <label>Firmware .bin <input id="flash-files" type="file" accept=".bin"></label>
+    <p id="plan-status">No firmware selected.</p>
+    <label><input id="save-backup" type="checkbox" checked>Save a full recovery backup before flashing (recommended)</label>
+    <p id="backup-option-detail">Uncheck to skip saving the backup file. Two tag reads still run to preserve factory data and verify the write. Without a saved backup, recovery is limited to this open browser session.</p>
     <label><input id="flash-confirm" type="checkbox">I have checked that this application is for this tag and want to replace its application firmware.</label>
-    <div class="actions"><button id="flash-check" disabled>Check plan and save backup</button><button class="primary" id="flash" disabled>Flash application</button></div>
-    <p>The tool takes two matching full reads and saves a verified recovery backup to the file you choose before allowing any erase. It writes application sectors only, verifies the entire flash, and restores protection. Keep this page open and the tag powered through completion or recovery.</p>
-    <p>Cancellation after writing starts restores the original application. If recovery fails, the CPU stays halted; keep the saved backup and report. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/docs/FLASHING.md">Plan preparation and recovery instructions</a>.</p>
-    <div id="flash-result" hidden><p id="flash-summary"></p><a id="flash-report" class="download">Download flashing report (.json)</a></div>
+    <div class="actions"><button id="flash-check" disabled>Check firmware</button><button class="primary" id="flash" disabled>Flash application</button></div>
+    <p>The tool takes two matching full reads before allowing any erase. When backup saving is enabled, it also saves and rereads your recovery file before writing. It writes application sectors only, verifies the entire flash, and restores protection. Keep this page open and the tag powered through completion or recovery.</p>
+    <p>Cancellation after writing starts restores the original application. If recovery fails, the CPU stays halted; keep the saved backup and report. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/docs/FLASHING.md">Firmware and recovery instructions</a>.</p>
+    <div id="flash-result" hidden><p id="flash-summary"></p><a id="flash-report" class="download">Download flashing report (.json)</a> <a id="emergency-backup" class="download" hidden>Download emergency recovery backup (.bin)</a></div>
   </section>
-  <p>Web tool revision: 2026-10-13.1</p>
+  <section>
+    <h2>5. Discovery progress and logs</h2>
+    <p>Read status from our 437 D8/D9 discovery firmware over Bluetooth, or watch its live UART output. Status polling sends only the read-only discovery status command; it does not start, pause or confirm trials.</p>
+    <div class="actions"><button id="discovery-connect">Connect discovery tag (BLE)</button><button id="discovery-read" disabled>Read status</button><button id="discovery-disconnect" disabled>Disconnect discovery</button></div>
+    <label><input id="discovery-poll" type="checkbox" checked>Poll status every 5 seconds while connected</label>
+    <p id="discovery-status" aria-live="polite">No discovery tag connected.</p>
+    <p id="discovery-detail">Firmware progress is separate from visual display success. Inspect the physical display and use the discovery firmware’s controller for confirmation.</p>
+    <h2>Live UART log</h2>
+    <p>Connect GP5 to the tag’s UART TX pad and common GND. Choose the RP2040’s <strong>Tag UART / GPIO4/5</strong> port (second interface, <code>if02</code>), not the SWS port. This listener sends no serial commands and can stay connected through flashing to capture boot/discovery messages.</p>
+    <label>Tag UART baud <select id="uart-baud"><option>115200</option><option>230400</option><option>460800</option><option>921600</option><option>1000000</option></select></label>
+    <div class="actions"><button id="uart-connect">Listen to tag UART</button><button id="uart-stop" disabled>Stop UART</button></div>
+    <p id="uart-status">UART not connected. Choose the baud used by your discovery firmware.</p>
+    <h2>Stored D9 discovery journal</h2>
+    <p>Load a full-flash backup or the 4 KiB journal sector to decode the persistent D9 log. Full readback on this tool also checks for that journal. Readback pauses/resets the tag; use BLE/UART for live progress.</p>
+    <label>Discovery log backup <input id="discovery-file" type="file" accept=".bin"></label>
+    <p id="journal-status">No discovery journal loaded.</p>
+    <pre id="journal-log" aria-label="Stored discovery events"></pre>
+    <pre id="discovery-log" role="log" aria-label="Live discovery events"></pre>
+    <div class="actions"><button id="discovery-save">Save discovery session (.json)</button><button id="discovery-clear">Clear displayed logs</button></div>
+  </section>
+  <p><a href="https://gerard780.github.io/hanshow-rp2040-programmer/">Open dumper-only page</a></p>
+  <p>Web tool revision: 2026-10-13.2</p>
   <section><h2>Activity</h2><pre id="log" role="log"></pre><button id="save-log">Save activity log</button></section>
   <p>Supports TLSR825x chip ID 0x5562 and recognized flash IDs. Captures main flash address zero through the detected capacity; separate OTP/security registers are excluded. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/firmware-dumper/README.md">Details and troubleshooting</a>.</p>
-</main><script src="sws.js"></script><script src="flash.js"></script><script src="app.js"></script></body></html>
+</main><script src="sws.js"></script><script src="flash.js"></script><script src="discovery.js"></script><script src="discovery-ui.js"></script><script src="app.js"></script></body></html>
