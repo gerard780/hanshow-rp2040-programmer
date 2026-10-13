@@ -52,7 +52,7 @@
       if (!file || file.size !== 524288 || !file.name.toLowerCase().endsWith('.bin')) throw new Error('Choose the complete original .bin backup, 512 KiB in size.');
       backup = (await FirmwareRecovery.validateSource(new Uint8Array(await file.arrayBuffer()), proof)).backup;
       $('backup-status').textContent = `Correct original backup selected: ${file.name}`; $('backup-status').className = 'hint ready';
-      $('connection-status').textContent = 'Confirm the reset wire is removed, then connect the programmer.';
+      $('connection-status').textContent = 'Confirm GP2 is disconnected from RST, then connect the programmer.';
     } catch (error) { $('backup-status').textContent = error.message; $('backup-status').className = 'hint error'; log(error.message); }
     finally { busy = false; render(); }
   };

@@ -24,10 +24,10 @@
     "recover_application.py": "609e18ac601171e4f8a1c706553e76fe692a6284cb6213d58a1c16208545112f",
     "tools/speed/application_recover.py": "9ba63c34f7f0945998d0fd5c3deec4146810ec4b2d77129ede674b246c6cad2e",
     "firmware-dumper/recovery.js": "4d63fca07d4360b9626f7030ff8aa925856b0cae4cac8456a329d60b28973560",
-    "firmware-dumper/support/template.html": "2e4b63b490fc7d2479ef608ff9e6800545487c66b0526e33f973156883267eb5",
+    "firmware-dumper/support/template.html": "a7b3bb6d019a6f91de004588cdf1958e113bb09dc43998daf15c7b0127c8b317",
     "firmware-dumper/support/config.js": "75223207b8aede0ee12e1d6ac2ddec1fd99cbf00c3f61267685009fe162225f8",
     "firmware-dumper/support/firmware.js": "c4f932a63fca0a22d29cf1c84d0de1f31a16ae67766890d7f2890b2def65b407",
-    "firmware-dumper/support/app.js": "5f75a2cc507ca7fc177245d93d0158eee3ef6bcdabbab7b62ae4e4bad0e70398"
+    "firmware-dumper/support/app.js": "47bb405a89640c3c466dfa06a362f6db000c9f7671f4d497d0be33176542701a"
   },
   "upstream_readers": [
     {

@@ -30,13 +30,13 @@
   </section>
   <section>
     <h2>3. Connect the programmer</h2>
-    <p class="notice"><strong>If there is a wire between GP2 and the tag’s RST pad, remove it.</strong> Leave the power, ground and both SWS wires connected. Keep power on. Do not press reset or BOOTSEL.</p>
+    <p class="notice"><strong>If there is a wire between GP2 and the tag’s RST pad, remove it.</strong> Leave the SWS connection, power and ground connected. Keep power on. Do not press reset or BOOTSEL.</p>
     <div class="wire" aria-label="Disconnect the reset wire from RP2040 GP2 to tag RST"><span>Programmer GP2</span><b>← remove this wire →</b><span>Tag RST</span></div>
-    <p class="hint">This prevents an accidental reset when the browser opens the connection. Your programmer is already v1.6; it does not need a firmware update.</p>
+    <p class="hint">Only SWS is used for data. You do not need the tag’s UART TX or RX pads connected. Disconnecting GP2/RST prevents an accidental reset when the browser opens the connection. Your programmer is already v1.6; it does not need a firmware update.</p>
     <label><input id="reset-disconnected" type="checkbox">GP2 is disconnected from RST, and I left the tag powered.</label>
     <p>Close other flasher or serial-monitor connections first. Click the two buttons in order. For the second, choose the port labelled <strong>SWS</strong> (the first interface), rather than Tag UART.</p>
     <div class="actions"><button id="connect-usb" disabled>Connect programmer</button><button id="connect-serial" disabled>Choose SWS port</button><button id="disconnect" disabled>Disconnect</button></div>
-    <p id="connection-status" class="hint" aria-live="polite">Choose your backup and confirm the wire is removed.</p>
+    <p id="connection-status" class="hint" aria-live="polite">Choose your backup and confirm GP2 is disconnected from RST.</p>
   </section>
   <section aria-live="polite">
     <h2>4. Check, then recover</h2>
