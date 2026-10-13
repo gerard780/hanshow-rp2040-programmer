@@ -8,19 +8,21 @@
     "CMakeLists.txt": "4f104ec63bb41b9d32d7b0d1093b5cc5e8b1c29449669c67122d8b607d2f9e6e",
     "readback.py": "975cc20b6f4d8b2b899a2c5f6884eb0fd219f990aab1b365e9ee605e6c857d16",
     "benchmark_readback.py": "db45b4242f76da6856c92551143c47394dd08b37416e712618718d1e4db247e0",
-    "firmware-dumper/sws.js": "f4008064fa32b027fc7e993c948d3cf7a2648eb562de7e8deae02f2cc8b5f3f4",
+    "firmware-dumper/sws.js": "97043700efca8fe99ccc6ec5dc11424bf81edb77bbc36431db1d87f4f6c0832b",
     "tools/speed/flash_backend.py": "b1be13ef8c37d944f6ee4acc7fc62ceff63ac804a23ccffe110f26bf9712b5cf",
     "tools/speed/write_validation.py": "bcd4faba70930438e3b977354d1a4fd02fc825667feb28883c86b23dd1ee6139",
     "flash_application.py": "232e6e986886f12f19bbad159700e5680f6107f7232c67bce759cc9b857d4226",
     "tools/speed/application_install.py": "77513fdf618cd443df5543856782b69e42aea80c065535714232e55467fafa41",
-    "firmware-dumper/flash.js": "6f6290817a69a70b4169736346fde24a0ab279c2586271d2426c74128fecd3f1",
-    "firmware-dumper/app.js": "3da058afce84ad02aa561e549a4f5411a8a30b002179e95e4dd8467bb31e0481",
+    "firmware-dumper/flash.js": "73b50078f3f8093de1958577fb45280a8965c7cbfb8562ef180245aa60c0dae5",
+    "firmware-dumper/app.js": "30e5298b011736e4f9bd5ca3fb10bb0295885b7449e099ff52e9ab266951ab30",
     "firmware-dumper/build_standalone.py": "cb7b4e98e643568d26fae3cd4d0c316d54143101b23f620bf49fc1f65e38e71a",
     "firmware-dumper/discovery.js": "9dbd971507227b59457c7bcb33625930109f7b0be84c3140ed191c9e06f9081c",
     "firmware-dumper/discovery-ui.js": "91842796ee349abec9172d26915cab8e56250b3d5df78521d5116ed377b56ca3",
     "firmware-dumper/dumper-app.js": "6a5d72e4255baa077774a6943802bd85ea17bc4a99412b14abf03da4c512ca98",
-    "firmware-dumper/dumper.template.html": "4b310f997ebc480e005d16988b9e1aedf25a07d4fd27c0f23ae08bcc6bac3799",
-    "firmware-dumper/index.template.html": "985069c566f42a34888e03b4a29a915e1b268bc798136f8e8f4492dd9e501c77"
+    "firmware-dumper/dumper.template.html": "bf429cef89b1bad5d402994d8b352ef3f8325fc39611d2a4edfb7c474de8e590",
+    "firmware-dumper/index.template.html": "9b067e52b349c30f9b41e6184e12ff6b5d87d0bb7ce8fcd02ab8cf61c59d7e98",
+    "recover_application.py": "609e18ac601171e4f8a1c706553e76fe692a6284cb6213d58a1c16208545112f",
+    "tools/speed/application_recover.py": "9ba63c34f7f0945998d0fd5c3deec4146810ec4b2d77129ede674b246c6cad2e"
   },
   "upstream_readers": [
     {
@@ -43,7 +45,7 @@
   "uf2_sha256": "55a226a09190eaf8bae327b0671f9c1d1d261f7001a51e233e2f23a95c454a51",
   "origin": "Public v1.6 adds idempotent SWS address selection to v1.5, matching host/browser version support and a guarded prepared-application installer using the corrected SPI status backend.",
   "scope": "No tag firmware dumps are included.",
-  "web_tool_revision": "2026-10-13.2",
+  "web_tool_revision": "2026-10-13.3",
   "web_pages": {
     "dumper_only": "docs/index.html",
     "read_write_discovery": "docs/tools/index.html"

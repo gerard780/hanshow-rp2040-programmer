@@ -25,7 +25,7 @@ polling and two-byte protection handling for `026255` / `EB6013`. The vendored
 upstream CLI still has the reported `Flash status 0xff` bug; upgrading the UF2
 alone does not fix its erase/write commands. Use the [read/write/discovery tool](https://gerard780.github.io/hanshow-rp2040-programmer/tools/)
 or `flash_application.py` for `026255` / `EB6013`.
-Browser revision **2026-10-13.2 accepts a single application `.bin`** and builds
+Browser revision **2026-10-13.3 accepts a single application `.bin`** and builds
 the per-tag plan automatically. Saving a full recovery backup is checked by
 default; users can uncheck it to flash without saving a backup file. Two matching
 full reads, factory preservation and full-image verification remain required.
@@ -35,6 +35,13 @@ The Python installer still accepts its prepared same-tag plan. It requires the
 existing v1.6 programmer UF2; no new RP2040 firmware is needed. Browser writes
 are experimental and software-tested with simulated devices; physical browser
 flashing and complete 437 installation remain untested.
+
+Browser writes require **1.5 Mbaud or 921600 baud**, selected before opening the
+SWS port. 2 Mbaud remains available for readback and read-only checks. The browser
+acknowledges each serial chunk and resynchronizes before recovery. If an
+installation fails with recovery unverified, save the emergency backup/report;
+use the [original-backup recovery command](docs/RECOVERY.md), rather than retrying
+an application installation on the interrupted image.
 
 [Download the experimental v1.6 release](https://github.com/gerard780/hanshow-rp2040-programmer/releases/tag/v1.6) ·
 [Dumper only](https://gerard780.github.io/hanshow-rp2040-programmer/) ·

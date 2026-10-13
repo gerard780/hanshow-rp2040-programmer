@@ -160,6 +160,10 @@
   };
   async function flashApplication(apply) {
     if (!selectedApplication || !bridge || !io || (apply && !$('flash-confirm').checked)) return;
+    if (apply && baudRate > 1500000) {
+      const message = 'Browser writes require 1.5 Mbaud or 921600 baud. Disconnect and select the lower rate before choosing the SWS port.';
+      $('status').textContent = message; log(message); return;
+    }
     const activationMs = Number($('activation').value);
     if (!Number.isInteger(activationMs) || activationMs < 100 || activationMs > 10000) {
       $('status').textContent = 'Choose an activation time from 100 to 10000 ms.'; return;

@@ -65,7 +65,7 @@
     <div id="result" hidden><p id="summary"></p><p id="hash"></p><div class="actions"><a id="binary" class="download">Download full flash (.bin)</a><a id="report" class="download">Download backup report (.json)</a></div></div>
   </section>
   <p><a href="https://gerard780.github.io/hanshow-rp2040-programmer/tools/">Open read/write/discovery tools</a></p>
-  <p>Web dumper revision: 2026-10-13.2</p>
+  <p>Web dumper revision: 2026-10-13.3</p>
   <section><h2>Activity</h2><pre id="log" role="log"></pre><button id="save-log">Save activity log</button></section>
   <p>Supports TLSR825x chip ID 0x5562 and recognized flash IDs. Captures main flash address zero through the detected capacity; separate OTP/security registers are excluded. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/firmware-dumper/README.md">Details and troubleshooting</a>.</p>
 </main><script>
@@ -76,7 +76,7 @@
  */
 (function (root) {
   'use strict';
-  const revision = '2026-10-13.2';
+  const revision = '2026-10-13.3';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const equal = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -172,11 +172,22 @@
       if (this.error) throw this.error;
       // Keep entire 10-byte SWS words within 60-byte CH340 USB transfers.
       for (let offset = 0; offset < bytes.length; offset += 60) {
+        const chunk = bytes.subarray(offset, offset + 60);
         try {
-          await bounded(this.writer.write(bytes.subarray(offset, offset + 60)), 2000, 'Serial write timed out');
+          await bounded(this.writer.write(chunk), 2000, 'Serial write timed out');
         } catch (error) { this.error = error; throw error; }
+        // An echo acknowledges physical transmission, rather than USB queuing.
+        // Stop at the first damaged chunk instead of sending the rest of a page.
+        if (echo) {
+          const received = await this.readExactly(chunk.length);
+          if (!equal(received, chunk)) {
+            const first = chunk.findIndex((byte, i) => byte !== received[i]);
+            const error = new Error(`Serial echo mismatch at encoded byte ${offset + first}: expected 0x${hex(chunk.subarray(first, first + 1))}, received 0x${hex(received.subarray(first, first + 1))}; check wiring and baud rate`);
+            error.transportDiagnostic = {kind: 'echo_mismatch', encodedOffset: offset + first, expected: chunk[first], received: received[first], packetBytes: bytes.length};
+            throw error;
+          }
+        }
       }
-      if (echo && !equal(await this.readExactly(bytes.length), bytes)) throw new Error('Serial echo mismatch; check wiring and baud rate');
     }
     async close() {
       this.closing = true; this.wake();
@@ -360,6 +371,17 @@
 
   class RP2040Reader extends Reader {
     constructor(io, bridge, log, baudRate = 921600) { super(io, log, baudRate); this.bridge = bridge; this.blockSize = 4096; }
+    async resynchronize() {
+      if (!this.paired) throw new Error('Cannot resynchronize an unpaired programmer');
+      await this.bridge.output(0x12); await sleep(60);
+      await this.io.settle();
+      // Discard one stop echo to clear an interrupted frame or stale payload.
+      // Keep the CDC connection and baud: reopening may toggle the reset line.
+      await this.io.send(stop(), false); await this.io.settle();
+      await this.io.send(stop());
+      await this.reg(0x0d, [1]); await this.reg(0xb3, [0]);
+      if (!equal(await this.read(0x602, 1), Uint8Array.of(5))) throw new Error('Recovery CPU halt did not verify');
+    }
     async activate(options) {
       // Verify that the separately selected serial port belongs to this bridge's
       // SWS interface before stopping a CPU. Wrong UART/board selections fail.

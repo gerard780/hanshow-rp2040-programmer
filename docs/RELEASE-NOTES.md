@@ -1,3 +1,13 @@
+# Web tools 2026-10-13.3 — serial acknowledgements and original-backup recovery
+
+Browser writes on an unstable serial link could fail sector verification and leave stale serial bytes that disrupted recovery. This update acknowledges each 60-byte encoded chunk, resynchronizes before recovery and protection restoration, and records attempted sectors and mismatch diagnostics. Browser writes require 1.5 Mbaud or 921600 baud, selected before opening the SWS port; 2 Mbaud remains available for readback and read-only checks.
+
+`recover_application.py` restores an interrupted 128 KiB application from its original full backup and failed browser report. It verifies the backup SHA-256, target flash UID, matching current snapshots and preserved factory data, uses 64-byte programs at 921600 baud, and requires full-image verification plus original protection before resetting the CPU. Disconnect GP2 from tag RST for this recovery command; serial drivers can toggle reset during port open. See docs/RECOVERY.md.
+
+Validation: 46 browser protocol/state cases, 40 Python cases, generated HTML checks and simulated Chromium tests for both URLs passed. The reported fifth-sector failure sequence is covered by a simulated restoration test. Successful physical browser installation/recovery and physical use of the new recovery command remain unverified; the original physical cause is unresolved.
+
+RP2040 v1.6 source and UF2 are unchanged. Both standalone HTML files contain all browser resources. No backend, factory backups, field-report identifiers or unreviewed hardware designs are included.
+
 # Web tools 2026-10-13.2 — single `.bin`, optional backup and discovery logs
 
 Recipients can now select one application `.bin`; the browser validates its

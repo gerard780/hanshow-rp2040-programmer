@@ -73,7 +73,7 @@
     <p id="backup-option-detail">Uncheck to skip saving the backup file. Two tag reads still run to preserve factory data and verify the write. Without a saved backup, recovery is limited to this open browser session.</p>
     <label><input id="flash-confirm" type="checkbox">I have checked that this application is for this tag and want to replace its application firmware.</label>
     <div class="actions"><button id="flash-check" disabled>Check firmware</button><button class="primary" id="flash" disabled>Flash application</button></div>
-    <p>The tool takes two matching full reads before allowing any erase. When backup saving is enabled, it also saves and rereads your recovery file before writing. It writes application sectors only, verifies the entire flash, and restores protection. Keep this page open and the tag powered through completion or recovery.</p>
+    <p>For writes, select 1.5 Mbaud or 921600 baud before opening the SWS port. 2 Mbaud is for readback and read-only checks. The tool takes two matching full reads before allowing any erase. When backup saving is enabled, it also saves and rereads your recovery file before writing. It writes application sectors only, verifies the entire flash, and restores protection. Keep this page open and the tag powered through completion or recovery.</p>
     <p>Cancellation after writing starts restores the original application. If recovery fails, the CPU stays halted; keep the saved backup and report. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/docs/FLASHING.md">Firmware and recovery instructions</a>.</p>
     <div id="flash-result" hidden><p id="flash-summary"></p><a id="flash-report" class="download">Download flashing report (.json)</a> <a id="emergency-backup" class="download" hidden>Download emergency recovery backup (.bin)</a></div>
   </section>
@@ -98,7 +98,7 @@
     <div class="actions"><button id="discovery-save">Save discovery session (.json)</button><button id="discovery-clear">Clear displayed logs</button></div>
   </section>
   <p><a href="https://gerard780.github.io/hanshow-rp2040-programmer/">Open dumper-only page</a></p>
-  <p>Web tool revision: 2026-10-13.2</p>
+  <p>Web tool revision: 2026-10-13.3</p>
   <section><h2>Activity</h2><pre id="log" role="log"></pre><button id="save-log">Save activity log</button></section>
   <p>Supports TLSR825x chip ID 0x5562 and recognized flash IDs. Captures main flash address zero through the detected capacity; separate OTP/security registers are excluded. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/firmware-dumper/README.md">Details and troubleshooting</a>.</p>
 </main><script>
@@ -109,7 +109,7 @@
  */
 (function (root) {
   'use strict';
-  const revision = '2026-10-13.2';
+  const revision = '2026-10-13.3';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const equal = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -205,11 +205,22 @@
       if (this.error) throw this.error;
       // Keep entire 10-byte SWS words within 60-byte CH340 USB transfers.
       for (let offset = 0; offset < bytes.length; offset += 60) {
+        const chunk = bytes.subarray(offset, offset + 60);
         try {
-          await bounded(this.writer.write(bytes.subarray(offset, offset + 60)), 2000, 'Serial write timed out');
+          await bounded(this.writer.write(chunk), 2000, 'Serial write timed out');
         } catch (error) { this.error = error; throw error; }
+        // An echo acknowledges physical transmission, rather than USB queuing.
+        // Stop at the first damaged chunk instead of sending the rest of a page.
+        if (echo) {
+          const received = await this.readExactly(chunk.length);
+          if (!equal(received, chunk)) {
+            const first = chunk.findIndex((byte, i) => byte !== received[i]);
+            const error = new Error(`Serial echo mismatch at encoded byte ${offset + first}: expected 0x${hex(chunk.subarray(first, first + 1))}, received 0x${hex(received.subarray(first, first + 1))}; check wiring and baud rate`);
+            error.transportDiagnostic = {kind: 'echo_mismatch', encodedOffset: offset + first, expected: chunk[first], received: received[first], packetBytes: bytes.length};
+            throw error;
+          }
+        }
       }
-      if (echo && !equal(await this.readExactly(bytes.length), bytes)) throw new Error('Serial echo mismatch; check wiring and baud rate');
     }
     async close() {
       this.closing = true; this.wake();
@@ -393,6 +404,17 @@
 
   class RP2040Reader extends Reader {
     constructor(io, bridge, log, baudRate = 921600) { super(io, log, baudRate); this.bridge = bridge; this.blockSize = 4096; }
+    async resynchronize() {
+      if (!this.paired) throw new Error('Cannot resynchronize an unpaired programmer');
+      await this.bridge.output(0x12); await sleep(60);
+      await this.io.settle();
+      // Discard one stop echo to clear an interrupted frame or stale payload.
+      // Keep the CDC connection and baud: reopening may toggle the reset line.
+      await this.io.send(stop(), false); await this.io.settle();
+      await this.io.send(stop());
+      await this.reg(0x0d, [1]); await this.reg(0xb3, [0]);
+      if (!equal(await this.read(0x602, 1), Uint8Array.of(5))) throw new Error('Recovery CPU halt did not verify');
+    }
     async activate(options) {
       // Verify that the separately selected serial port belongs to this bridge's
       // SWS interface before stopping a CPU. Wrong UART/board selections fail.
@@ -686,7 +708,13 @@
         if (page.every(byte => byte === 255)) continue;
         await this.spi([6]); await this.spi([2, address >> 16, address >> 8 & 255, address & 255, ...page]); await this.ready(recovery);
       }
-      requireValue(equal(await this.readSector(offset), data), 'Programmed sector readback mismatch');
+      const actual = await this.readSector(offset);
+      if (!equal(actual, data)) {
+        const first = data.findIndex((byte, i) => byte !== actual[i]);
+        const error = new Error(`Programmed sector readback mismatch at sector 0x${offset.toString(16)}, address 0x${(offset + first).toString(16)}`);
+        error.sectorDiagnostic = {offset, firstMismatchAddress: offset + first, expectedSha256: await digest(data), readbackSha256: await digest(actual)};
+        throw error;
+      }
     }
     async fullRead(phase, signal, progress) {
       const data = new Uint8Array(SIZE);
@@ -706,7 +734,7 @@
       plan?.kind === 'single-bin' ? await validateBinary(plan.application) : null;
     plan = binary ? null : await validatePlan(plan.meta, plan.application, plan.expected, plan.recovery);
     const flash = new FlashSession(reader), touched = [];
-    const report = {webFlasherRevision: dump.revision, apply, inputMode: binary ? 'single-bin' : 'prepared-plan', backupRequested: saveRecoveryBackup, backupSaved: false, verified: false, writtenSectors: [], cpuResetVerified: false, events: []};
+    const report = {webFlasherRevision: dump.revision, apply, baudRate: reader.baudRate, inputMode: binary ? 'single-bin' : 'prepared-plan', backupRequested: saveRecoveryBackup, backupSaved: false, verified: false, attemptedSectors: touched, writtenSectors: [], cpuResetVerified: false, events: []};
     const event = (name, details = {}) => {
       report.events.push({event: name, ...details});
       // UI/logging failures must not interrupt preservation or recovery.
@@ -716,6 +744,7 @@
     try {
       const bridge = await reader.bridge.status();
       requireValue(bridge.version === '1.6', 'Browser flashing requires the tested RP2040 v1.6 UF2');
+      requireValue(!apply || [921600, 1500000].includes(reader.baudRate), 'Browser writes require 1.5 Mbaud or 921600 baud. Disconnect and select the lower rate before opening the SWS port; 2 Mbaud remains available for readback and checks');
       cancelled(signal);
       const identity = await reader.activate(options);
       requireValue(identity.chipId === '026255', 'Flashing supports chip 026255 only');
@@ -757,6 +786,7 @@
           cancelled(signal); const offset = order[index];
           requireValue(equal(await reader.read(0x602, 1), Uint8Array.of(5)), 'CPU no longer halted');
           touched.push(offset); // recovery includes a partial erase/program
+          event('sector_attempted', {offset});
           await flash.writeSector(offset, plan.expected.subarray(offset, offset + SECTOR), before.subarray(offset, offset + SECTOR));
           report.writtenSectors.push(offset); event('sector_verified', {offset});
           progress({phase: 'Programming', done: (index + 1) * SECTOR, total: order.length * SECTOR});
@@ -768,16 +798,20 @@
       } else if (apply) report.alreadyInstalled = true;
     } catch (error) {
       failure = error; event('installation_failed', {message: error.message});
+      if (error.transportDiagnostic) report.transportDiagnostic = error.transportDiagnostic;
+      if (error.sectorDiagnostic) report.sectorDiagnostic = error.sectorDiagnostic;
       if (touched.length && before) {
         imageVerified = false;
         try {
-          await reader.bridge.output(0x12); await new Promise(resolve => setTimeout(resolve, 60));
-          await reader.io.settle(); await reader.io.send(dump.encode([0xff]));
+          await reader.resynchronize();
+          event('recovery_transport_resynchronized', {baudRate: reader.baudRate});
           requireValue(equal(uid, await flash.spi([0x4b, 0, 0, 0, 0], 16)), 'Recovery target changed');
           const order = [...new Set(touched.filter(offset => offset !== 0))].sort((a, b) => a - b);
           if (touched.includes(0)) order.push(0);
           for (const offset of order) {
+            event('recovery_sector_attempted', {offset});
             await flash.writeSector(offset, before.subarray(offset, offset + SECTOR), await flash.readSector(offset), true);
+            event('recovery_sector_verified', {offset});
             progress({phase: 'Restoring original application', done: (order.indexOf(offset) + 1) * SECTOR, total: order.length * SECTOR});
           }
           requireValue(equal(await flash.fullRead('Verifying recovery', undefined, progress), before), 'Complete recovery verification failed');
@@ -787,6 +821,7 @@
     } finally {
       if (flash.protection !== null) {
         try {
+          if (failure) await reader.resynchronize();
           await flash.restoreProtection(); requireValue(await flash.status() === flash.protection, 'Protection restore did not repeat');
           protectionVerified = true; report.protectionFinal = flash.protection; event('protection_restored');
         } catch (error) { protectionVerified = false; report.protectionError = error.message; event('protection_restore_failed', {message: error.message}); }
@@ -1231,6 +1266,10 @@
   };
   async function flashApplication(apply) {
     if (!selectedApplication || !bridge || !io || (apply && !$('flash-confirm').checked)) return;
+    if (apply && baudRate > 1500000) {
+      const message = 'Browser writes require 1.5 Mbaud or 921600 baud. Disconnect and select the lower rate before choosing the SWS port.';
+      $('status').textContent = message; log(message); return;
+    }
     const activationMs = Number($('activation').value);
     if (!Number.isInteger(activationMs) || activationMs < 100 || activationMs > 10000) {
       $('status').textContent = 'Choose an activation time from 100 to 10000 ms.'; return;

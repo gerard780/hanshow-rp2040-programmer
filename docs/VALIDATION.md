@@ -225,3 +225,33 @@ serial commands/RTS reset, loaded journal records and session export alongside
 single-bin saved/unsaved flashing and emergency backup recovery. These tests
 use simulated devices. Physical browser writes, BLE/UART discovery hardware,
 D9 installation/display behavior and Windows hardware remain untested.
+
+## Browser transport and interrupted-write recovery — revision 2026-10-13.3
+
+A field report for revision 2026-10-13.2 described two matching full backups,
+four verified sectors, a later sector readback mismatch, failed recovery and
+failed protection restoration at 2 Mbaud. The report does not distinguish a
+programming fault from a corrupted readback and does not establish its physical
+cause. Successful physical browser installation/recovery remains unverified.
+
+Revision2026-10-13.3 acknowledges each 60-byte serial chunk before transmitting
+the next, drains stale bytes and interrupted framing before recovery/protection
+restoration, and requires 1.5 Mbaud or 921600 baud for browser writes. Readback/checks
+retain 2 Mbaud. Baud is selected before opening the serial port; recovery does not
+reopen it or pulse reset. Reports include attempted sectors, recovery sector
+progress and sector mismatch diagnostics. RP2040 source and v1.6 UF2 are unchanged.
+
+Four new software cases check chunk acknowledgement/early abort, the 2 Mbaud
+write guard, the five-sector failure sequence with stale echo and complete
+restoration, and failed resynchronization retaining the emergency backup with
+CPU halted. Existing readback, flashing, single-bin and discovery tests pass.
+Chromium smoke tests include the 2 Mbaud write guard, saved/unsaved flashing and
+emergency backup downloads, with simulated devices only.
+
+`recover_application.py` has six offline recovery tests covering original full
+backup/report guards, changed factory-data rejection, sector ordering, complete
+restoration before reset, a read-only check without reset/writes, wrong-UID
+rejection and a partial recovery failure without reset. It uses the existing
+conservative 64-byte/921600 baud backend and adds complete-backup/failed-report
+identity guards. The recovery command itself has no physical hardware test.
+No field-report device identifiers or private backups are published.

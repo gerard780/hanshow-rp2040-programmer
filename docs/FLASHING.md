@@ -22,6 +22,15 @@ in-session rollback. With saving enabled, the chosen full backup file must be
 closed, reread and verified before unlock. Check firmware is a dry run; Flash
 application additionally requires the application acknowledgement.
 
+Browser writes require **1.5 Mbaud or 921600 baud**, selected before opening the
+SWS port. 2 Mbaud remains available for readback and Check firmware. Serial chunks
+are acknowledged individually; recovery clears interrupted framing and stale
+receive bytes before verifying the halted CPU and target UID. Recovery retains
+the selected baud because reopening the serial port can toggle reset. If recovery
+fails, use the [original-backup recovery command](RECOVERY.md) after saving the
+emergency original backup and failed-install report. A normal installation is
+not a recovery of the original image.
+
 Keep the page/power connected during writes and recovery. When unsaved recovery
 fails, the CPU stays halted and the page offers an emergency original-backup
 download. Save it before closing/reloading the page. Without a saved backup,

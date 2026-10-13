@@ -203,10 +203,25 @@ The v1.6 firmware exposes two CDC interfaces plus control-only vendor interface
 the serial interfaces retain normal drivers. Linux needs serial and USB
 permissions for prototype VID/PID `cafe:4012`.
 
-Run `node --test firmware-dumper/tests/readback.test.cjs firmware-dumper/tests/flashing.test.cjs firmware-dumper/tests/single-bin.test.cjs firmware-dumper/tests/discovery.test.cjs` for protocol, full-read,
+Run `node --test firmware-dumper/tests/readback.test.cjs firmware-dumper/tests/flashing.test.cjs firmware-dumper/tests/single-bin.test.cjs firmware-dumper/tests/discovery.test.cjs firmware-dumper/tests/transport-recovery.test.cjs` for protocol, full-read,
 mismatch, cancellation, identity and address-width tests. The optional
 `tests/browser-smoke.cjs` uses Playwright and simulated devices to check actual
 UI downloads and cleanup; `DUMPER_URL` and `CHROMIUM_PATH` configure its local
 preview and browser. Compiled descriptor checks are in
 `tests/test_descriptors.py`; `PROGRAMMER_BUILD_DIR` selects the firmware build.
 See [validation](../docs/VALIDATION.md) for physical evidence and limits.
+
+## Interrupted browser write recovery (2026-10-13.3)
+
+Use 1.5 Mbaud or 921600 baud for browser writes; select it before opening the serial
+port. 2 Mbaud remains available for readback/checks. Each 60-byte encoded chunk is
+acknowledged before the next, and recovery drains stale bytes and verifies the
+CPU halt and target UID before restoration. Reports include attempted sectors,
+recovery sector events and sector mismatch address/hashes.
+
+When recovery fails, keep the page and tag powered, save the original emergency
+backup and report, and follow [original-backup recovery](../docs/RECOVERY.md).
+The recovery command uses 921600 baud and 64-byte programs, never overwrites factory
+data, and requires full-image equality and restored protection before CPU reset.
+Software simulation is the validation for these changes; successful physical
+browser installation/recovery remains unverified. The RP2040 v1.6 UF2 is unchanged.

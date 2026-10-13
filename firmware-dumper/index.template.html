@@ -72,7 +72,7 @@
     <p id="backup-option-detail">Uncheck to skip saving the backup file. Two tag reads still run to preserve factory data and verify the write. Without a saved backup, recovery is limited to this open browser session.</p>
     <label><input id="flash-confirm" type="checkbox">I have checked that this application is for this tag and want to replace its application firmware.</label>
     <div class="actions"><button id="flash-check" disabled>Check firmware</button><button class="primary" id="flash" disabled>Flash application</button></div>
-    <p>The tool takes two matching full reads before allowing any erase. When backup saving is enabled, it also saves and rereads your recovery file before writing. It writes application sectors only, verifies the entire flash, and restores protection. Keep this page open and the tag powered through completion or recovery.</p>
+    <p>For writes, select 1.5 Mbaud or 921600 baud before opening the SWS port. 2 Mbaud is for readback and read-only checks. The tool takes two matching full reads before allowing any erase. When backup saving is enabled, it also saves and rereads your recovery file before writing. It writes application sectors only, verifies the entire flash, and restores protection. Keep this page open and the tag powered through completion or recovery.</p>
     <p>Cancellation after writing starts restores the original application. If recovery fails, the CPU stays halted; keep the saved backup and report. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/docs/FLASHING.md">Firmware and recovery instructions</a>.</p>
     <div id="flash-result" hidden><p id="flash-summary"></p><a id="flash-report" class="download">Download flashing report (.json)</a> <a id="emergency-backup" class="download" hidden>Download emergency recovery backup (.bin)</a></div>
   </section>
@@ -97,7 +97,7 @@
     <div class="actions"><button id="discovery-save">Save discovery session (.json)</button><button id="discovery-clear">Clear displayed logs</button></div>
   </section>
   <p><a href="https://gerard780.github.io/hanshow-rp2040-programmer/">Open dumper-only page</a></p>
-  <p>Web tool revision: 2026-10-13.2</p>
+  <p>Web tool revision: 2026-10-13.3</p>
   <section><h2>Activity</h2><pre id="log" role="log"></pre><button id="save-log">Save activity log</button></section>
   <p>Supports TLSR825x chip ID 0x5562 and recognized flash IDs. Captures main flash address zero through the detected capacity; separate OTP/security registers are excluded. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/firmware-dumper/README.md">Details and troubleshooting</a>.</p>
 </main><script src="sws.js"></script><script src="flash.js"></script><script src="discovery.js"></script><script src="discovery-ui.js"></script><script src="app.js"></script></body></html>

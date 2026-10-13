@@ -172,7 +172,13 @@
         if (page.every(byte => byte === 255)) continue;
         await this.spi([6]); await this.spi([2, address >> 16, address >> 8 & 255, address & 255, ...page]); await this.ready(recovery);
       }
-      requireValue(equal(await this.readSector(offset), data), 'Programmed sector readback mismatch');
+      const actual = await this.readSector(offset);
+      if (!equal(actual, data)) {
+        const first = data.findIndex((byte, i) => byte !== actual[i]);
+        const error = new Error(`Programmed sector readback mismatch at sector 0x${offset.toString(16)}, address 0x${(offset + first).toString(16)}`);
+        error.sectorDiagnostic = {offset, firstMismatchAddress: offset + first, expectedSha256: await digest(data), readbackSha256: await digest(actual)};
+        throw error;
+      }
     }
     async fullRead(phase, signal, progress) {
       const data = new Uint8Array(SIZE);
@@ -192,7 +198,7 @@
       plan?.kind === 'single-bin' ? await validateBinary(plan.application) : null;
     plan = binary ? null : await validatePlan(plan.meta, plan.application, plan.expected, plan.recovery);
     const flash = new FlashSession(reader), touched = [];
-    const report = {webFlasherRevision: dump.revision, apply, inputMode: binary ? 'single-bin' : 'prepared-plan', backupRequested: saveRecoveryBackup, backupSaved: false, verified: false, writtenSectors: [], cpuResetVerified: false, events: []};
+    const report = {webFlasherRevision: dump.revision, apply, baudRate: reader.baudRate, inputMode: binary ? 'single-bin' : 'prepared-plan', backupRequested: saveRecoveryBackup, backupSaved: false, verified: false, attemptedSectors: touched, writtenSectors: [], cpuResetVerified: false, events: []};
     const event = (name, details = {}) => {
       report.events.push({event: name, ...details});
       // UI/logging failures must not interrupt preservation or recovery.
@@ -202,6 +208,7 @@
     try {
       const bridge = await reader.bridge.status();
       requireValue(bridge.version === '1.6', 'Browser flashing requires the tested RP2040 v1.6 UF2');
+      requireValue(!apply || [921600, 1500000].includes(reader.baudRate), 'Browser writes require 1.5 Mbaud or 921600 baud. Disconnect and select the lower rate before opening the SWS port; 2 Mbaud remains available for readback and checks');
       cancelled(signal);
       const identity = await reader.activate(options);
       requireValue(identity.chipId === '026255', 'Flashing supports chip 026255 only');
@@ -243,6 +250,7 @@
           cancelled(signal); const offset = order[index];
           requireValue(equal(await reader.read(0x602, 1), Uint8Array.of(5)), 'CPU no longer halted');
           touched.push(offset); // recovery includes a partial erase/program
+          event('sector_attempted', {offset});
           await flash.writeSector(offset, plan.expected.subarray(offset, offset + SECTOR), before.subarray(offset, offset + SECTOR));
           report.writtenSectors.push(offset); event('sector_verified', {offset});
           progress({phase: 'Programming', done: (index + 1) * SECTOR, total: order.length * SECTOR});
@@ -254,16 +262,20 @@
       } else if (apply) report.alreadyInstalled = true;
     } catch (error) {
       failure = error; event('installation_failed', {message: error.message});
+      if (error.transportDiagnostic) report.transportDiagnostic = error.transportDiagnostic;
+      if (error.sectorDiagnostic) report.sectorDiagnostic = error.sectorDiagnostic;
       if (touched.length && before) {
         imageVerified = false;
         try {
-          await reader.bridge.output(0x12); await new Promise(resolve => setTimeout(resolve, 60));
-          await reader.io.settle(); await reader.io.send(dump.encode([0xff]));
+          await reader.resynchronize();
+          event('recovery_transport_resynchronized', {baudRate: reader.baudRate});
           requireValue(equal(uid, await flash.spi([0x4b, 0, 0, 0, 0], 16)), 'Recovery target changed');
           const order = [...new Set(touched.filter(offset => offset !== 0))].sort((a, b) => a - b);
           if (touched.includes(0)) order.push(0);
           for (const offset of order) {
+            event('recovery_sector_attempted', {offset});
             await flash.writeSector(offset, before.subarray(offset, offset + SECTOR), await flash.readSector(offset), true);
+            event('recovery_sector_verified', {offset});
             progress({phase: 'Restoring original application', done: (order.indexOf(offset) + 1) * SECTOR, total: order.length * SECTOR});
           }
           requireValue(equal(await flash.fullRead('Verifying recovery', undefined, progress), before), 'Complete recovery verification failed');
@@ -273,6 +285,7 @@
     } finally {
       if (flash.protection !== null) {
         try {
+          if (failure) await reader.resynchronize();
           await flash.restoreProtection(); requireValue(await flash.status() === flash.protection, 'Protection restore did not repeat');
           protectionVerified = true; report.protectionFinal = flash.protection; event('protection_restored');
         } catch (error) { protectionVerified = false; report.protectionError = error.message; event('protection_restore_failed', {message: error.message}); }

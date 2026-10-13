@@ -7,8 +7,8 @@ const {fixture} = require('./flash-fixture.cjs');
 async function setup() {
   const fake = new FakeRP2040(); fake.allowFlash = true; fake.version = 0x10006;
   const original = fake.memory.slice(), plan = await fixture(original);
-  const bridge = new USBBridge(fake); await bridge.open(); await fake.open({baudRate: 2000000});
-  const io = new SerialIO(fake, 80), reader = new RP2040Reader(io, bridge, undefined, 2000000);
+  const bridge = new USBBridge(fake); await bridge.open(); await fake.open({baudRate: 1500000});
+  const io = new SerialIO(fake, 80), reader = new RP2040Reader(io, bridge, undefined, 1500000);
   const options = {activationMs: 100, apply: true, saveBackup: async bytes => {
     assert.equal(fake.eraseOrder.length, 0); assert.equal(fake.statusWrites.length, 0);
     assert.deepEqual(bytes, original); return digest(bytes);
