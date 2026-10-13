@@ -1,11 +1,11 @@
-# Browser tag firmware dumper
+# Browser tag firmware backup and flashing
 
-Capture a tag's complete main flash through the RP2040-Zero using WebUSB and
+Capture a tag's complete main flash or install a prepared application through the RP2040-Zero using WebUSB and
 Web Serial in desktop Chrome or Edge. The binary and verification report stay
 on your computer. Install the [public v1.6 UF2](../dist/hanshow_pio_bridge.uf2)
 on the programmer using BOOTSEL; tag firmware does not need to be changed.
 
-**[Open the hosted dumper](https://gerard780.github.io/hanshow-rp2040-programmer/)**
+**[Open the hosted tool](https://gerard780.github.io/hanshow-rp2040-programmer/)**
 
 `index.html` is a standalone file containing the styles, transport/UI JavaScript
 and current programmer UF2 download. Copy **just that HTML file** to any static
@@ -14,7 +14,7 @@ needed. GitHub Pages serves the identical file from `docs/index.html`.
 The documentation links lead to GitHub only when you click them. Capture and
 verification stay in your browser, and the UF2 download is embedded locally.
 
-[Download the single HTML file](https://github.com/gerard780/hanshow-rp2040-programmer/releases/download/v1.6/hanshow-firmware-dumper.html).
+[Download the single HTML file](https://github.com/gerard780/hanshow-rp2040-programmer/releases/download/web-2026.10.13/hanshow-firmware-tool.html).
 The embedded distribution notices travel with the file when you host a copy.
 
 From the repository root, run:
@@ -28,7 +28,7 @@ Keep the page open and the computer awake during capture and cleanup.
 
 ## Rebuild the standalone file
 
-Edit `index.template.html`, `sws.js` or `app.js`, then run from the repo root:
+Edit `index.template.html`, `sws.js`, `flash.js` or `app.js`, then run from the repo root:
 
 ```sh
 python3 firmware-dumper/build_standalone.py
@@ -91,8 +91,52 @@ additional read of that block reports whether the disagreement is repeatable;
 the failed capture remains rejected even if that diagnostic read matches.
 A physically disconnected USB link can prevent cleanup; the
 log reports this and the tag may need a power cycle. Select both devices again
-for another attempt. The browser issues SPI reads, JEDEC identification and
-wake commands only; it has no flash erase/program/unlock/status-write path.
+for another attempt. The backup operation issues SPI reads, JEDEC identification and
+wake commands only. The separate application installation operation below
+can unlock, erase and program the application region.
+
+## Browser application flashing (revision 2026-10-13.1)
+
+No new RP2040 firmware is required on a v1.6 programmer. Flashing requires
+v1.6, desktop Chrome/Edge, HTTPS or localhost, and the browser's file-save API.
+Older supported programmer versions can still use readback. The standalone
+HTML contains the entire flasher and the same embedded v1.6 UF2.
+
+Writing is restricted to `026255` / `EB6013` with known protection status;
+this does not expand the Python reader's write compatibility. Prepare the
+application's same-tag plan using its supplied `prepare_flash.py` as described
+in [the flashing guide](../docs/FLASHING.md). Select all four plan files in the
+page. The browser validates hashes, header/CRC, erased padding, sector order
+and application boundaries before accessing hardware.
+
+Connect the programmer/SWS port, then choose **Check plan and save backup**
+for a dry run or check the application acknowledgement and choose **Flash
+application**. Choose a separate recovery `.bin` file in the save dialog.
+The browser takes two new matching complete 512 KiB reads, checks them against
+the prepared same-tag backup hash, writes the recovery file, closes it and
+rereads it. No unlock or erase is permitted unless the saved bytes verify.
+The existing backup download operation remains read-only.
+
+Flashing writes only changed application sectors below `0x20000`, with sector
+zero last. It uses correct SPI status transactions and two-byte protection
+updates, confirms each erased sector is blank, programs 256-byte pages,
+verifies each sector and all 512 KiB, then restores the exact protection and
+resets the CPU. Factory/calibration/identity data are preserved; no mass erase.
+Save the flashing report, which is available after successful and failed runs.
+
+Cancel completes the current sector operation and attempts restoration of all
+attempted sectors using 64-byte programs and legacy status reads at the selected
+baud. Recovery ignores cancellation and requires complete original-flash
+verification. If recovery/protection cannot verify, the CPU stays halted.
+Keep power connected, retain the saved same-tag backup/report and resolve
+recovery before resetting. A browser closure or physical unplug can interrupt
+recovery; keep the page and connections active through completion.
+
+This implementation passed simulated protocol/flash-state and real Chromium
+UI checks. Physical browser flashing, Windows hardware writes and full 437
+application/display behavior remain untested. Earlier Python original-byte
+write evidence validates the underlying v1.6 transport/backend, not a physical
+WebUSB installation. See [validation](../docs/VALIDATION.md).
 
 ## USB and validation
 
@@ -101,7 +145,7 @@ The v1.6 firmware exposes two CDC interfaces plus control-only vendor interface
 the serial interfaces retain normal drivers. Linux needs serial and USB
 permissions for prototype VID/PID `cafe:4012`.
 
-Run `node --test firmware-dumper/tests/readback.test.cjs` for protocol, full-read,
+Run `node --test firmware-dumper/tests/readback.test.cjs firmware-dumper/tests/flashing.test.cjs` for protocol, full-read,
 mismatch, cancellation, identity and address-width tests. The optional
 `tests/browser-smoke.cjs` uses Playwright and simulated devices to check actual
 UI downloads and cleanup; `DUMPER_URL` and `CHROMIUM_PATH` configure its local

@@ -161,3 +161,26 @@ Full 437 installation/display behavior, physical browser capture (including
 the earlier `0x035000` mismatch), Windows hardware writes, 826x hardware and
 additional tags remain untested. No private dumps, device IDs, test plans or
 unreviewed CAD files are published. The bench programmer is retained on v1.6.
+
+## Browser flashing revision 2026-10-13.1 — 13 October 2026
+
+The standalone HTML adds a guarded application installer over the existing
+v1.6 SWS/USB protocol. The RP2040 source and shipped UF2 are unchanged; the
+UF2 hash remains `55a226a0...c454a51`.
+
+Nine new flash-state test cases pass, covering successful two-sector installs,
+saved-backup gating, read-only dry runs, stale plans, application/factory/page
+boundaries, CRC/order validation, partial programming in sector zero,
+cancellation with recovery, ignored erase, failed recovery, failed protection
+restoration, unknown hardware and serial/USB pairing. A NOR flash emulator
+executes the actual waveform packets, write-enable/protection rules and page
+program bit transitions. The 18 existing readback protocol cases also pass.
+
+Chromium tests exercise the generated single HTML's existing backup/download
+flows, valid application-file selection, explicit write acknowledgement,
+flashing with saved recovery bytes, result reports and a failed backup file
+write that prevents all unlock/erase/program. Mobile layout and absence of
+companion network resources are checked. Physical browser writes, Windows
+hardware, and complete 437 application/display behavior remain untested;
+no bench devices were modified for this browser release. The earlier v1.6
+Python write evidence does not establish physical WebUSB flashing success.

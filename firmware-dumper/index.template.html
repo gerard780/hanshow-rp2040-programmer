@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tag firmware backup · RP2040</title>
+  <title>Tag firmware backup and flashing · RP2040</title>
   <link rel="icon" href="data:,">
   <style>
     :root {color-scheme:dark; font-family:system-ui,sans-serif; background:#10171b; color:#e8f0f1}
@@ -14,7 +14,7 @@
     .grid {display:grid; grid-template-columns:1fr 1fr; gap:24px} table {width:100%; border-collapse:collapse; font-size:14px}
     th,td {text-align:left; padding:7px 5px; border-bottom:1px solid #344249} th {color:#b7c9cc}
     label {display:block; line-height:1.5; margin:12px 0} input[type=number],select {width:110px; background:#10171b; border:1px solid #60767e; border-radius:5px; color:inherit; padding:8px; margin-left:10px}
-    input[type=checkbox] {accent-color:#80e0cc; margin-right:8px} button,.download {font:inherit; border-radius:8px; padding:12px 17px; border:1px solid #657b83; color:inherit; background:#26383f; cursor:pointer; display:inline-block; text-decoration:none}
+    input[type=file] {max-width:100%} input[type=checkbox] {accent-color:#80e0cc; margin-right:8px} button,.download {font:inherit; border-radius:8px; padding:12px 17px; border:1px solid #657b83; color:inherit; background:#26383f; cursor:pointer; display:inline-block; text-decoration:none}
     button.primary {background:#80e0cc; color:#102621; border-color:#80e0cc; font-weight:650} button:disabled {opacity:.4; cursor:default}
     .actions {display:flex; flex-wrap:wrap; gap:10px; align-items:center} .device {font-size:14px; margin:10px 0 0; overflow-wrap:anywhere}
     progress {width:100%; height:18px; accent-color:#80e0cc; margin-top:15px} #status {font-size:18px; margin:0; color:#e8f0f1}
@@ -25,13 +25,13 @@
 </head>
 <body><main>
   <div class="eyebrow">OPENEPAPERLINK · RP2040-ZERO</div>
-  <h1>Back up the entire tag.</h1>
-  <p>Download every byte of the tag’s main flash, including firmware, settings and calibration data. Everything runs locally in your browser.</p>
+  <h1>Back up or flash your tag.</h1>
+  <p>Download every byte of the tag’s main flash, including firmware, settings and calibration data. Install a prepared application while preserving factory data. Everything runs locally in your browser.</p>
   <p id="compatibility" class="notice" hidden></p>
   <section class="grid">
     <div>
       <h2>1. Prepare the programmer</h2>
-      <p>Install <a href="@@PROGRAMMER_UF2@@" download="hanshow_pio_bridge.uf2">RP2040 bridge v@@PROGRAMMER_VERSION@@ UF2</a> using BOOTSEL, then reconnect normally. The tag needs no firmware update.</p>
+      <p>Install <a href="@@PROGRAMMER_UF2@@" download="hanshow_pio_bridge.uf2">RP2040 bridge v@@PROGRAMMER_VERSION@@ UF2</a> using BOOTSEL, then reconnect normally. For flashing, the programmer must run v1.6. If it already does, no programmer update is needed.</p>
       <p>Power the tag from 3.3 V with its batteries removed. Use short leads and a common ground.</p>
       <p><a href="https://github.com/gerard780/hanshow-rp2040-programmer#build-the-programmer">Full wiring and firmware instructions</a></p>
     </div>
@@ -63,7 +63,18 @@
     <p id="detail">The tag pauses during capture and is reset afterward. The dumper issues no flash erase, program or unlock commands.</p>
     <div id="result" hidden><p id="summary"></p><p id="hash"></p><div class="actions"><a id="binary" class="download">Download full flash (.bin)</a><a id="report" class="download">Download backup report (.json)</a></div></div>
   </section>
-  <p>Web dumper revision: 2026-10-08.1</p>
+  <section>
+    <h2>4. Flash a prepared application</h2>
+    <p>Experimental: chip <code>026255</code> with <code>EB6013</code> flash only. Select the four files from your application’s same-tag flash plan: <code>flash-plan.json</code>, <code>application-padded.bin</code>, <code>expected-full-flash.bin</code> and <code>recovery-application.bin</code>.</p>
+    <label>Application plan files <input id="flash-files" type="file" multiple accept=".json,.bin"></label>
+    <p id="plan-status">No application plan selected.</p>
+    <label><input id="flash-confirm" type="checkbox">I have checked that this application is for this tag and want to replace its application firmware.</label>
+    <div class="actions"><button id="flash-check" disabled>Check plan and save backup</button><button class="primary" id="flash" disabled>Flash application</button></div>
+    <p>The tool takes two matching full reads and saves a verified recovery backup to the file you choose before allowing any erase. It writes application sectors only, verifies the entire flash, and restores protection. Keep this page open and the tag powered through completion or recovery.</p>
+    <p>Cancellation after writing starts restores the original application. If recovery fails, the CPU stays halted; keep the saved backup and report. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/docs/FLASHING.md">Plan preparation and recovery instructions</a>.</p>
+    <div id="flash-result" hidden><p id="flash-summary"></p><a id="flash-report" class="download">Download flashing report (.json)</a></div>
+  </section>
+  <p>Web tool revision: 2026-10-13.1</p>
   <section><h2>Activity</h2><pre id="log" role="log"></pre><button id="save-log">Save activity log</button></section>
   <p>Supports TLSR825x chip ID 0x5562 and recognized flash IDs. Captures main flash address zero through the detected capacity; separate OTP/security registers are excluded. <a href="https://github.com/gerard780/hanshow-rp2040-programmer/blob/main/firmware-dumper/README.md">Details and troubleshooting</a>.</p>
-</main><script src="sws.js"></script><script src="app.js"></script></body></html>
+</main><script src="sws.js"></script><script src="flash.js"></script><script src="app.js"></script></body></html>

@@ -19,6 +19,18 @@ const crypto = require('node:crypto');
       Object.defineProperty(navigator, 'usb', {value: {requestDevice: async () => window.mockBridge}});
       Object.defineProperty(navigator, 'serial', {value: {requestPort: async () => window.mockBridge}});
     });
+    await page.addInitScript(() => {
+      // File system API emulator retains committed bytes for backup reread.
+      window.savedRecovery = null;
+      window.failBackupSave = false;
+      window.showSaveFilePicker = async () => ({name: 'test-recovery-full.bin',
+        createWritable: async () => ({write: async bytes => {
+          if (window.failBackupSave) throw new Error('Injected disk write failure');
+          window.pendingRecovery = Uint8Array.from(bytes);
+        }, close: async () => { window.savedRecovery = window.pendingRecovery; }, abort: async () => {}}),
+        getFile: async () => new File([window.savedRecovery], 'test-recovery-full.bin'),
+      });
+    });
     await page.goto(process.env.DUMPER_URL || 'http://127.0.0.1:8765/firmware-dumper/');
     assert(await page.locator('#verify').isChecked());
     assert(await page.locator('#dump').isDisabled());
@@ -76,8 +88,39 @@ const crypto = require('node:crypto');
     assert(await page.locator('#result').isHidden());
     assert.equal(await page.evaluate(() => window.mockBridge.cancelCount), 1);
     assert.equal(await page.evaluate(() => window.mockBridge.signals.at(-1).requestToSend), false);
+    const {fixture} = require('./flash-fixture.cjs');
+    const original = Uint8Array.from({length: 524288}, (_, i) => ((i >>> 8) ^ i ^ (i >>> 16)) & 255);
+    const plan = await fixture(original);
+    const files = [
+      {name: 'flash-plan.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(plan.meta))},
+      {name: 'application-padded.bin', mimeType: 'application/octet-stream', buffer: Buffer.from(plan.application)},
+      {name: 'expected-full-flash.bin', mimeType: 'application/octet-stream', buffer: Buffer.from(plan.expected)},
+      {name: 'recovery-application.bin', mimeType: 'application/octet-stream', buffer: Buffer.from(plan.recovery)},
+    ];
+    await page.evaluate(() => { window.mockBridge = new FakeRP2040(); window.mockBridge.version = 0x10006; window.mockBridge.allowFlash = true; });
+    await page.locator('#flash-files').setInputFiles(files);
+    await page.waitForFunction(() => document.getElementById('plan-status').textContent.startsWith('Application plan validated'));
+    await connect();
+    assert(await page.locator('#flash').isDisabled());
+    await page.locator('#flash-confirm').check();
+    await page.locator('#flash').click();
+    await page.waitForFunction(() => document.getElementById('status').textContent === 'Application installed and verified.', {timeout: 30000});
+    assert.deepEqual(await page.evaluate(() => window.mockBridge.eraseOrder), [4096, 0]);
+    assert.equal(await page.evaluate(() => window.mockBridge.protection), 0x382c);
+    assert.equal(await page.evaluate(() => window.savedRecovery.length), 524288);
+    const flashReportDownload = page.waitForEvent('download'); await page.locator('#flash-report').click();
+    const flashReport = JSON.parse(fs.readFileSync(await (await flashReportDownload).path()));
+    assert(flashReport.verified && flashReport.apply && flashReport.backupSaved && flashReport.cpuResetVerified);
+    assert(await page.locator('#flash').isDisabled());
+    await page.evaluate(() => { window.mockBridge = new FakeRP2040(); window.mockBridge.version = 0x10006; window.mockBridge.allowFlash = true; window.failBackupSave = true; });
+    await connect(); await page.locator('#flash-confirm').check(); await page.locator('#flash').click();
+    await page.waitForFunction(() => document.getElementById('status').textContent.includes('Injected disk write failure'), {timeout: 30000});
+    assert.deepEqual(await page.evaluate(() => window.mockBridge.eraseOrder), []);
+    assert.deepEqual(await page.evaluate(() => window.mockBridge.statusWrites), []);
+    assert.equal(await page.locator('#flash-files').isDisabled(), false);
+    assert.equal(await page.locator('#flash-result').isHidden(), false);
     assert.deepEqual(errors, []);
     assert(requests.every(url => url === (process.env.DUMPER_URL || 'http://127.0.0.1:8765/firmware-dumper/')), 'Standalone page loaded another network resource');
-    console.log('Browser checks passed: standalone page without other network resources, embedded UF2, complete downloads, hash/report, mismatch, cancellation, closed handles, mobile layout.');
+    console.log('Browser checks passed: standalone page without other network resources, embedded UF2, complete downloads, hash/report, mismatch, cancellation, closed handles, mobile layout, flashing, saved-backup gating and failure reports.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

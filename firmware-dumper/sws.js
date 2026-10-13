@@ -4,7 +4,7 @@
  */
 (function (root) {
   'use strict';
-  const revision = '2026-10-08.1';
+  const revision = '2026-10-13.1';
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
   const hex = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
   const equal = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);

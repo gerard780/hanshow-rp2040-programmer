@@ -8,11 +8,14 @@
     "CMakeLists.txt": "4f104ec63bb41b9d32d7b0d1093b5cc5e8b1c29449669c67122d8b607d2f9e6e",
     "readback.py": "975cc20b6f4d8b2b899a2c5f6884eb0fd219f990aab1b365e9ee605e6c857d16",
     "benchmark_readback.py": "db45b4242f76da6856c92551143c47394dd08b37416e712618718d1e4db247e0",
-    "firmware-dumper/sws.js": "3aa81d8d58262a8363c425860fd297a48d0a7f3f5c1a26703a0623507a5217bc",
+    "firmware-dumper/sws.js": "fea9e1492319fde2d7c10d619f0ce9efac8b52df705438d3da66377acec93942",
     "tools/speed/flash_backend.py": "b1be13ef8c37d944f6ee4acc7fc62ceff63ac804a23ccffe110f26bf9712b5cf",
     "tools/speed/write_validation.py": "bcd4faba70930438e3b977354d1a4fd02fc825667feb28883c86b23dd1ee6139",
     "flash_application.py": "232e6e986886f12f19bbad159700e5680f6107f7232c67bce759cc9b857d4226",
-    "tools/speed/application_install.py": "77513fdf618cd443df5543856782b69e42aea80c065535714232e55467fafa41"
+    "tools/speed/application_install.py": "77513fdf618cd443df5543856782b69e42aea80c065535714232e55467fafa41",
+    "firmware-dumper/flash.js": "7b42a22dfe369eafef8352f34f53ed7e2bd0029ff3046f7d60efb1ad01eaf22d",
+    "firmware-dumper/app.js": "a08a1bf4b9f7224dcc58a35f3d0c56e3a7cae96b5758fcddb29a696f3bf435a3",
+    "firmware-dumper/build_standalone.py": "60b4e87c2091ddfd8ef3aa40cea77666658290988aeeec775ec060ce7c8ecf14"
   },
   "upstream_readers": [
     {
@@ -34,5 +37,6 @@
   ],
   "uf2_sha256": "55a226a09190eaf8bae327b0671f9c1d1d261f7001a51e233e2f23a95c454a51",
   "origin": "Public v1.6 adds idempotent SWS address selection to v1.5, matching host/browser version support and a guarded prepared-application installer using the corrected SPI status backend.",
-  "scope": "No tag firmware dumps are included."
+  "scope": "No tag firmware dumps are included.",
+  "web_tool_revision": "2026-10-13.1"
 }

@@ -23,11 +23,16 @@ explicit fallback. Independent matching captures remain required.
 The new [application installer](docs/FLASHING.md) uses corrected SPI status
 polling and two-byte protection handling for `026255` / `EB6013`. The vendored
 upstream CLI still has the reported `Flash status 0xff` bug; upgrading the UF2
-alone does not fix its erase/write commands. Use `flash_application.py` with
-the target application's prepared same-tag plan.
+alone does not fix its erase/write commands. Use the [browser tool](https://gerard780.github.io/hanshow-rp2040-programmer/)
+or `flash_application.py` with the target application's prepared same-tag plan.
+Browser revision **2026-10-13.1 adds application flashing** for `026255` / `EB6013`
+and saves/rereads a complete recovery backup before writes. It requires the
+existing v1.6 programmer UF2; no new RP2040 firmware is needed. Browser writes
+are experimental and software-tested with simulated devices; physical browser
+flashing and complete 437 installation remain untested.
 
 [Download the experimental v1.6 release](https://github.com/gerard780/hanshow-rp2040-programmer/releases/tag/v1.6) ·
-[Open the browser dumper](https://gerard780.github.io/hanshow-rp2040-programmer/) ·
+[Open the browser backup/flashing tool](https://gerard780.github.io/hanshow-rp2040-programmer/) ·
 [Standalone HTML and hosting](firmware-dumper/README.md) ·
 [Application flashing](docs/FLASHING.md) ·
 [Validation and limits](docs/VALIDATION.md)

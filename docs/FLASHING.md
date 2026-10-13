@@ -1,6 +1,7 @@
 # Application flashing on 026255 / EB6013
 
-Use `flash_application.py` from the repository root with the application
+Use the [browser backup/flashing tool](https://gerard780.github.io/hanshow-rp2040-programmer/)
+or `flash_application.py` from the repository root with the application
 package's `flash-plan.json`. This experimental installer is limited to chip
 `026255`, flash `EB6013`, 512 KiB main flash and known status `0x002c` or
 `0x382c`. Readback supports more chips; writing does not.
@@ -34,6 +35,21 @@ hashes, padding, region limits and recovery bytes. It takes two new durable
 full backups and requires both to match the plan's original-backup hash.
 An old or different tag's plan is rejected before unlock. Prepared files and
 capture directories contain per-tag data; keep them private.
+
+For browser flashing, connect your v1.6 programmer and select these four files
+in the page's application section. Choose **Check plan and save backup** for a
+dry run. For installation, check the application acknowledgement and choose
+**Flash application**, then select a separate recovery backup file to save.
+The browser takes two fresh matching full reads and saves/rereads the backup
+before unlock. It performs the same application-only boundary, blank-sector,
+sector-zero-last and full-image verification checks. It needs desktop
+Chrome/Edge with file-save access, and HTTPS or localhost; the single HTML
+requires no application backend. The existing v1.6 UF2 is sufficient.
+
+Browser recovery uses 64-byte programs and legacy status reads at the selected
+baud. The Python recovery path below additionally switches to 921600 baud.
+Physical browser writes remain untested; protocol and Chromium UI tests use
+simulated devices. Full experimental 437 installation remains untested.
 
 From this programmer repository after installing `requirements.txt`:
 

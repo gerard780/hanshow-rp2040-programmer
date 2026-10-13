@@ -1,3 +1,24 @@
+# Web tool 2026-10-13.1 — application flashing (experimental)
+
+The single HTML now supports guarded application flashing as well as backups.
+It requires the existing v1.6 RP2040 UF2; programmer source and UF2 are unchanged.
+Select the four prepared same-tag plan files, choose a recovery backup file,
+and explicitly acknowledge application replacement to enable writes.
+
+Before unlock, two complete reads must match the plan and the saved recovery
+file must be closed/reread and verified. The browser preserves upper flash,
+writes sector zero last, blank-checks and verifies each sector and the entire
+expected image, restores protection, and attempts original-byte recovery on
+failure/cancellation. Unverified recovery/protection keeps the CPU halted.
+
+Nine new flash-state cases, 18 existing readback cases and Chromium UI checks
+pass. Physical browser writes and complete 437 installation remain untested.
+See [browser instructions](../firmware-dumper/README.md), [flashing](FLASHING.md)
+and [validation](VALIDATION.md). No backend, external scripts, private tag dumps
+or unreviewed CAD files are required/included. To revert the browser feature,
+use the read-only standalone HTML from the v1.6 release; keep the same programmer
+UF2. Tag recovery always uses your own same-tag saved backup.
+
 # Programmer v1.6 — reconnect and guarded application writes (experimental)
 
 Repeated connections after legacy SWS activation previously stalled when a

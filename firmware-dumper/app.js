@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const {SerialIO, USBBridge, RP2040Reader, capture, hex, defaultBaud, revision} = FirmwareDump;
-  let bridge = null, io = null, controller = null, busy = false;
+  let bridge = null, io = null, controller = null, busy = false, selectedPlan = null;
   let baudRate = 921600;
   let usbLabel = '', serialLabel = '', urls = [], started = 0, phase = '', phaseStarted = 0;
   const supported = isSecureContext && !!navigator.serial && !!navigator.usb && !!crypto.subtle;
@@ -16,13 +16,18 @@
     $('serial').disabled = busy || !bridge || !!io;
     $('disconnect').disabled = busy || (!bridge && !io);
     $('dump').disabled = busy || !bridge || !io;
+    $('flash-files').disabled = busy;
+    $('flash-confirm').disabled = busy;
+    const canFlash = supported && !!window.showSaveFilePicker && !!selectedPlan && !!bridge && !!io && !busy;
+    $('flash-check').disabled = !canFlash;
+    $('flash').disabled = !canFlash || !$('flash-confirm').checked;
     $('cancel').disabled = !controller || controller.signal.aborted;
     for (const id of ['activation', 'verify', 'reset']) $(id).disabled = busy;
     $('device').textContent = [usbLabel, serialLabel].filter(Boolean).join(' · ') || 'No programmer connected.';
   }
   function clearResult() {
     for (const url of urls) URL.revokeObjectURL(url);
-    urls = []; $('result').hidden = true;
+    urls = []; $('result').hidden = true; $('flash-result').hidden = true; $('flash-report').removeAttribute('href');
     $('binary').removeAttribute('href'); $('report').removeAttribute('href');
   }
   function downloadLink(element, data, name, type) {
@@ -77,7 +82,7 @@
     $('status').textContent = 'Disconnected.'; log('Disconnected.');
   };
   $('cancel').onclick = () => {
-    controller?.abort(); $('status').textContent = 'Cancelling and releasing the tag…'; render();
+    controller?.abort(); $('status').textContent = 'Cancelling; completing any active sector and recovering if needed…'; render();
   };
   function progress(update) {
     if (phase !== update.phase) { phase = update.phase; phaseStarted = performance.now(); }
@@ -132,6 +137,89 @@
     $('hash').textContent = `SHA-256: ${result.metadata.sha256}`;
     $('detail').textContent = cleanup ? 'Readback passed, but cleanup reported an error. Check the activity log and power-cycle the tag.' : 'The tag was reset and both connections were closed. Save the binary and its report.';
   };
+  $('flash-confirm').onchange = render;
+  $('flash-files').onchange = async () => {
+    selectedPlan = null; $('flash-confirm').checked = false; render();
+    busy = true; render();
+    try {
+      const files = new Map();
+      for (const file of $('flash-files').files) {
+        if (files.has(file.name)) throw new Error(`Duplicate plan file: ${file.name}`);
+        files.set(file.name, file);
+      }
+      const names = ['flash-plan.json', 'application-padded.bin', 'expected-full-flash.bin', 'recovery-application.bin'];
+      if (files.size !== 4 || names.some(name => !files.has(name))) throw new Error('Select all four files from one prepared application plan.');
+      for (const [name, file] of files) {
+        const limit = name === 'flash-plan.json' ? 65536 : name === 'expected-full-flash.bin' ? 524288 : 131072;
+        if (file.size > limit) throw new Error(`Plan file exceeds its size limit: ${name}`);
+      }
+      const meta = JSON.parse(await files.get(names[0]).text());
+      const [application, expected, recovery] = await Promise.all(names.slice(1).map(async name => new Uint8Array(await files.get(name).arrayBuffer())));
+      selectedPlan = await FirmwareFlash.validatePlan(meta, application, expected, recovery);
+      $('plan-status').textContent = `Application plan validated: ${application.length.toLocaleString()} bytes at address zero. Same-tag backup will be checked before writes.`;
+      log('Application package hashes, checksum, padding and region limits verified.');
+    } catch (error) { $('plan-status').textContent = `Plan rejected: ${error.message}`; log(error.message); }
+    finally { busy = false; render(); }
+  };
+  async function flashApplication(apply) {
+    if (!selectedPlan || !bridge || !io || (apply && !$('flash-confirm').checked)) return;
+    const activationMs = Number($('activation').value);
+    if (!Number.isInteger(activationMs) || activationMs < 100 || activationMs > 10000) {
+      $('status').textContent = 'Choose an activation time from 100 to 10000 ms.'; return;
+    }
+    // File chooser must execute during this click's user activation, before USB work.
+    let handle; busy = true; render();
+    try {
+      handle = await window.showSaveFilePicker({suggestedName: `tag-recovery-${Date.now()}-full.bin`,
+        types: [{description: 'Complete tag recovery backup', accept: {'application/octet-stream': ['.bin']}}]});
+    } catch (error) { log(`Backup file not selected: ${error.message}`); busy = false; render(); return; }
+    if (['flash-plan.json', 'application-padded.bin', 'expected-full-flash.bin', 'recovery-application.bin'].includes(handle.name)) {
+      log('Choose a separate recovery backup file; application plan files must be retained.'); busy = false; render(); return;
+    }
+    busy = true; controller = new AbortController(); render(); clearResult();
+    $('flash-result').hidden = true; $('flash-report').removeAttribute('href');
+    started = performance.now(); phase = ''; $('progress').value = 0;
+    log(`${apply ? 'Installing' : 'Checking'} application plan with web tool ${revision}. Recovery backup: ${handle.name}.`);
+    let report, failure;
+    try {
+      report = await FirmwareFlash.installApplication(new RP2040Reader(io, bridge, log, baudRate), selectedPlan, {
+        apply, activationMs, pulseReset: $('reset').checked, signal: controller.signal, progress,
+        saveBackup: async (bytes, details) => {
+          const stream = await handle.createWritable();
+          try { await stream.write(bytes); await stream.close(); }
+          catch (error) { try { await stream.abort(); } catch (_) {} throw error; }
+          const saved = new Uint8Array(await (await handle.getFile()).arrayBuffer());
+          const hash = await FirmwareFlash.digest(saved);
+          if (!equalBytes(saved, bytes)) throw new Error('Saved recovery backup differs; writes refused');
+          log(`Recovery backup saved and reread: ${handle.name}, SHA-256 ${hash}.`);
+          return hash;
+        },
+        onEvent: (name, details) => log(`${name.replaceAll('_', ' ')}${details.offset === undefined ? '' : ` at 0x${details.offset.toString(16)}`}${details.message ? `: ${details.message}` : ''}`),
+      });
+    } catch (error) { failure = error; report = error.report; log(`Application operation failed: ${error.message}`); }
+    finally {
+      const warnings = await disconnect();
+      if (report) { report.connectionCleanupWarnings = warnings; report.durationSeconds = (performance.now() - started) / 1000; }
+      controller = null; busy = false; $('flash-confirm').checked = false; render();
+    }
+    if (report) {
+      downloadLink($('flash-report'), JSON.stringify(report, null, 2) + '\n', `tag-flash-${Date.now()}-report.json`, 'application/json');
+      $('flash-result').hidden = false;
+    }
+    if (failure) {
+      $('status').textContent = `Application operation failed: ${failure.message}`;
+      $('flash-summary').textContent = report?.recoveryVerified ? 'Original application restored and protection verified; installation was cancelled or failed.' : 'Operation failed. Keep the recovery backup and this report.';
+      $('detail').textContent = report?.cpuKeptHalted ? 'CPU kept halted: recovery or protection failed. Keep power connected and use your saved same-tag backup to recover before resetting.' : 'See the activity log and downloaded report. Reconnect for another attempt.';
+    } else {
+      $('status').textContent = apply ? (report.alreadyInstalled ? 'Application already installed; no writes needed.' : 'Application installed and verified.') : 'Plan and saved recovery backup verified; no application writes performed.';
+      $('flash-summary').textContent = `Recovery backup: ${handle.name}. Protection and CPU reset verified.`;
+      $('detail').textContent = 'Both connections closed. Save the flashing report.';
+    }
+  }
+  function equalBytes(a, b) { return a.length === b.length && a.every((byte, index) => byte === b[index]); }
+  $('flash-check').onclick = () => flashApplication(false);
+  $('flash').onclick = () => flashApplication(true);
+  if (!window.showSaveFilePicker) $('plan-status').textContent = 'Flashing requires desktop Chrome or Edge with file-save access (HTTPS or localhost). Readback remains available.';
   $('save-log').onclick = () => {
     const url = URL.createObjectURL(new Blob([$('log').textContent], {type: 'text/plain'}));
     const link = document.createElement('a'); link.href = url; link.download = 'tag-backup-log.txt'; link.click();

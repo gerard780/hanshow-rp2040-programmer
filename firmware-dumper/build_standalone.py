@@ -20,7 +20,7 @@ def bundle():
     html = (HERE / "index.template.html").read_text()
     html = html.replace("@@PROGRAMMER_UF2@@", "data:application/octet-stream;base64," + base64.b64encode(uf2).decode("ascii"))
     html = html.replace("@@PROGRAMMER_VERSION@@", manifest["version"])
-    for name in ("sws.js", "app.js"):
+    for name in ("sws.js", "flash.js", "app.js"):
         marker = f'<script src="{name}"></script>'
         if html.count(marker) != 1:
             raise ValueError(f"Expected one template script: {name}")

@@ -13,6 +13,10 @@
       this.shortPayload = false; this.stayBusy = false; this.serialClosed = false;
       this.vendorId = 0xcafe; this.productId = 0x4012; this.serialNumber = 'FAKE-ZERO'; this.opened = false;
       this.configuration = {configurationValue: 1}; this.version = 0x10005; this.addressWidth = 2;
+      this.allowFlash = false; this.protection = 0x382c; this.writeEnable = false;
+      this.flashUid = Uint8Array.from({length: 16}, (_, i) => i + 1);
+      this.eraseOrder = []; this.programCount = 0; this.statusWrites = [];
+      this.ignoreErase = false; this.failProtectionRestore = false;
       this.makeStreams();
     }
     makeStreams() {
@@ -26,8 +30,7 @@
         this.readAddress++; return [2, 0x62, 0x55][address - 0x7d];
       }
       if (address === 0x0c) {
-        if (this.spiCommand === 0x9f) return this.jedec[this.spiAddress++];
-        return this.memory[this.spiAddress++];
+        return this.spiReadByte();
       }
       return this.registers.get(address) || 0;
     }
@@ -37,13 +40,46 @@
       if (this.frame[4] === 0x80) { this.readAddress = address; this.frame = []; return; }
       const data = this.frame.slice(5);
       this.registers.set(address, data[0]);
+      if (address === 0x0d && data[0] === 1 && this.spiPending) {
+        this.executeFlash(this.spiPending); this.spiPending = null;
+      }
       if (address === 0x6f) this.resets++;
       if (address === 0x0c) {
         this.spiCommand = data[0]; this.commands.push(data[0]);
-        if (![3, 0x9f, 0xab].includes(data[0])) throw new Error(`Unexpected flash command ${data[0]}`);
+        if (![3, 0x9f, 0xab, ...(this.allowFlash ? [5, 0x35, 0x4b, 1, 2, 6, 0x20] : [])].includes(data[0])) throw new Error(`Unexpected flash command ${data[0]}`);
+        this.spiPending = data.slice();
         this.spiAddress = data[0] === 3 ? (data[1] << 16) | (data[2] << 8) | data[3] : 0;
       }
       this.frame = [];
+    }
+    spiReadByte() {
+      if (this.spiCommand === 0x9f) return this.jedec[this.spiAddress++];
+      if (this.spiCommand === 5) return this.protection & 255;
+      if (this.spiCommand === 0x35) return this.protection >> 8;
+      if (this.spiCommand === 0x4b) return this.flashUid[this.spiAddress++];
+      return this.memory[this.spiAddress++];
+    }
+    executeFlash(command) {
+      const opcode = command[0];
+      if (opcode === 6) this.writeEnable = true;
+      if (![1, 2, 0x20].includes(opcode)) return;
+      if (!this.allowFlash || !this.writeEnable) throw new Error('Unauthorized simulated flash write');
+      this.writeEnable = false;
+      const offset = command[1] * 65536 + command[2] * 256 + command[3];
+      if (opcode === 1) {
+        const value = command[1] | command[2] << 8;
+        this.statusWrites.push(value);
+        if (!(this.failProtectionRestore && value === 0x382c)) this.protection = value;
+      } else {
+        if (this.protection & 0x407c) throw new Error('Simulated flash is protected');
+        if (opcode === 0x20) {
+          this.eraseOrder.push(offset);
+          if (!this.ignoreErase) this.memory.fill(255, offset, offset + 4096);
+        } else {
+          this.programCount++;
+          for (let i = 4; i < command.length; i++) this.memory[offset + i - 4] &= command[i];
+        }
+      }
     }
     write(bytes) {
       this.tx += bytes.length;
@@ -96,7 +132,7 @@
         out.setUint32(0, this.stayBusy ? 1 : this.blockState, true); out.setUint32(4, this.blockCount, true);
       } else if (setup.request === 0x13) {
         const data = new Uint8Array(out.buffer);
-        data.set(this.memory.subarray(this.spiAddress, this.spiAddress + length)); this.spiAddress += length;
+        for (let i = 0; i < length; i++) data[i] = this.spiReadByte();
         if (this.blockRequests === this.corruptAtBlock) data[this.corruptOffset] ^= 1;
         if (this.shortPayload) return {status: 'ok', data: new DataView(out.buffer, 0, length - 1)};
       } else throw new Error('Unexpected control input');
