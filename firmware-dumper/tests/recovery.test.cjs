@@ -119,3 +119,17 @@ test('failed original protection restoration blocks both final reset and new app
     assert.equal(error.recoverySession.installation,null);assert.equal(e.fake.resets,0);assert.deepEqual(e.fake.memory,e.original);
   }finally{await e.close();}
 });
+test('changed contents or protection between stages prevent writes and any restart',async()=>{
+  for (const mode of ['contents','protection']) {
+  const e=await setup(),plan=await fixture(e.original);
+  e.options.onEvent=name=>{if(name==='original_protection_verified'){
+    if(mode==='contents')e.fake.memory[0x8000]^=1;else e.fake.protection=0x382c;
+  }};
+  try{
+    let error;try{await R.restoreAndInstall(e.reader,e.original,e.source,plan.application,{...e.options,apply:true});}catch(e){error=e;}
+    assert.match(error.message,/changed after original-image recovery/);
+    assert(error.recoverySession.installation.cpuKeptHalted);assert.equal(e.fake.resets,0);
+    assert.deepEqual(e.fake.eraseOrder,[0x3000,0x4000,0x5000,0x6000,0x7000]);
+  }finally{await e.close();}
+  }
+});

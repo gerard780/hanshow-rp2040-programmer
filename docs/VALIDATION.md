@@ -275,11 +275,12 @@ backup/target hashes before application writes. The only successful reset is
 after final complete-image and protection verification. Failed new-app writes
 use the restored original as their rollback image.
 
-Eight recovery state cases cover backup/report guards, dry checks without
+Nine recovery state cases cover backup/report guards, dry checks without
 mutations/reset, wrong hardware/current reads/factory-data rejection, original
 restoration, combined installation without an intermediate reset, cancelled or
 failed recovery, original-image rollback on new-app failure, and failed
-protection preventing the second stage/reset. Target settle timers are shortened
+protection preventing the second stage/reset, and changed contents/protection between stages
+preventing writes/reset. Target settle timers are shortened
 in simulations; this does not model physical timing. Existing browser protocol
 cases remain passing.
 

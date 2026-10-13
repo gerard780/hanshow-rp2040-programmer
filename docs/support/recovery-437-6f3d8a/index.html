@@ -722,7 +722,8 @@ globalThis.RecoveryFirmware = Object.freeze({
       // UI/logging failures must not interrupt preservation or recovery.
       try { onEvent(name, details); } catch (_) { /* journal remains in report */ }
     };
-    let before = null, uid, failure, imageVerified = true, protectionVerified = true;
+    let before = null, uid, failure, trustedBefore = !(options.expectedBackupSha256 || options.expectedFlashUidSha256);
+    let imageVerified = trustedBefore, protectionVerified = true;
     try {
       const bridge = await reader.bridge.status();
       requireValue(bridge.version === '1.6', 'Browser flashing requires the tested RP2040 v1.6 UF2');
@@ -737,6 +738,8 @@ globalThis.RecoveryFirmware = Object.freeze({
         equal(uid, await flash.spi([0x4b, 0, 0, 0, 0], 16)), 'Flash UID did not repeat');
       const protection = await flash.status();
       requireValue([0x2c, 0x382c].includes(protection), 'Unknown protection layout');
+      if (options.expectedProtection !== undefined) requireValue(protection === options.expectedProtection,
+        'Protection changed after original-image recovery; application writes refused');
       Object.assign(report, identity, {jedecId: 'eb6013', flashUid: hex(uid), protectionOriginal: protection, bridgeVersion: bridge.version});
       before = await flash.fullRead('Reading tag (pass 1)', signal, progress);
       const second = await flash.fullRead('Reading tag (pass 2)', signal, progress);
@@ -745,6 +748,7 @@ globalThis.RecoveryFirmware = Object.freeze({
         'Tag contents changed after original-image recovery; application writes refused');
       if (options.expectedFlashUidSha256) requireValue(await digest(uid) === options.expectedFlashUidSha256,
         'Target changed after original-image recovery; application writes refused');
+      trustedBefore = true; imageVerified = true;
       if (binary) plan = await prepareFromBinary(binary.application, before);
       const order = await checkBackup(plan, before);
       report.firmwareSha256 = plan.meta.firmware_sha256;
@@ -803,7 +807,7 @@ globalThis.RecoveryFirmware = Object.freeze({
           requireValue(equal(await flash.fullRead('Verifying recovery', undefined, progress), before), 'Complete recovery verification failed');
           imageVerified = true; report.recoveryVerified = true; event('original_image_restored');
         } catch (error) { report.recoveryError = error.message; event('recovery_failed', {message: error.message}); }
-      } else imageVerified = true; // no erase/program attempted
+      } else imageVerified = trustedBefore; // no erase/program; chained recovery still requires its expected snapshot
     } finally {
       if (flash.protection !== null) {
         try {
@@ -986,7 +990,8 @@ globalThis.RecoveryFirmware = Object.freeze({
       }
       const installation = await F.installApplication(reader, chosen.application, {...options, apply: true,
         saveRecoveryBackup: false, conservative: true, haltOnly: true, pulseReset: false,
-        expectedBackupSha256: proof.backupSha256, expectedFlashUidSha256: proof.flashUidSha256});
+        expectedBackupSha256: proof.backupSha256, expectedFlashUidSha256: proof.flashUidSha256,
+        expectedProtection: proof.protectionOriginal});
       return {operation: 'restore_and_install', verified: true, recovery, installation};
     } catch (error) {
       error.recoverySession = {operation: chosen ? 'restore_and_install' : 'restore_original', verified: false,

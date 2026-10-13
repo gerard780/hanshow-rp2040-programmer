@@ -138,7 +138,8 @@
       }
       const installation = await F.installApplication(reader, chosen.application, {...options, apply: true,
         saveRecoveryBackup: false, conservative: true, haltOnly: true, pulseReset: false,
-        expectedBackupSha256: proof.backupSha256, expectedFlashUidSha256: proof.flashUidSha256});
+        expectedBackupSha256: proof.backupSha256, expectedFlashUidSha256: proof.flashUidSha256,
+        expectedProtection: proof.protectionOriginal});
       return {operation: 'restore_and_install', verified: true, recovery, installation};
     } catch (error) {
       error.recoverySession = {operation: chosen ? 'restore_and_install' : 'restore_original', verified: false,

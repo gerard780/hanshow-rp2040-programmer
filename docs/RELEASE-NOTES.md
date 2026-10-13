@@ -12,7 +12,7 @@ and protection verification. Both stages use conservative 64-byte programming at
 921600 baud. Users disconnect GP2 from RST before serial connection to prevent
 host-driver reset pulses. Existing RP2040 v1.6 firmware is unchanged.
 
-Validation: eight new recovery state cases and Chromium end-to-end support-page
+Validation: nine new recovery state cases and Chromium end-to-end support-page
 checks, including actual included D9, custom firmware, original-only restoration,
 wrong backup/hardware, failed restoration/protection and one final reset. Existing
 protocol and Chromium read/write/discovery and dumper-only tests passed. Physical
