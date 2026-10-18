@@ -240,7 +240,7 @@ backup mode. A supported desktop browser must provide USB, serial and the
 file-save API. A fresh full backup must be committed and reread before writing.
 The target guard matches D10's offline planner: exact captured product record
 and full native waveform-package SHA-256. Unknown or altered factory data is
-rejected before unlock. Conservative writes use 921600 baud; existing journal
+rejected before unlock. Conservative writes use 460800 baud; existing journal
 preservation, sector-zero-last ordering, full-image verification and recovery
 come from the existing backend. Unverified recovery disables reconnect/install
 controls so a normal retry cannot reset the held tag.
@@ -260,6 +260,14 @@ up to eight `{offset, read1, read2}` byte samples. Both the activity log and
 error show the first mismatch address. Invalid reads never reach backup saving,
 unlock, erase or programming. These diagnostics do not identify the physical
 cause of an unstable read.
+
+Page revision `2026-10-18.3` lowers the guided installer's fixed connection rate
+to 460800 baud for readback, programming and recovery. The existing v1.6 bridge
+accepts SWS rates from 340000 to 3000000 baud. At 460800, the nominal capture
+divider is 104, within the one-byte SWS register; the existing probe range is
+69–208. No UF2 or tag application changes are needed. Existing full-tool defaults
+are unchanged. A lower rate is a troubleshooting option, not proof that the
+reported read instability has been resolved.
 
 ## Temporary browser recovery page (2026-10-13.4)
 

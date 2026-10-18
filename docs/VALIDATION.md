@@ -1,5 +1,15 @@
 # Programmer validation
 
+## Lower-rate D10 installer — page 2026-10-18.3
+
+The readback timing tests include 460800 baud with divider 104. Guided-page
+Chromium checks verify that the port, installation report and recovery keep
+that rate while retaining backup persistence, rejected mismatched/blank reads,
+complete-image preservation and cancellation behavior. The v1.6 source accepts
+SWS line coding from 340000 to 3000000 baud, so 460800 needs no bridge firmware
+change. These simulated tests do not establish physical reliability at the
+lower rate or resolve the cause of the reported backup disagreement.
+
 ## Backup diagnostics — page 2026-10-18.2
 
 The comparison tests distinguish matching nonblank reads, byte disagreements

@@ -29,7 +29,10 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
         if (options.failedRecovery) window.mockBridge.ignoreErase = true;
         if (options.protectionFailure) window.mockBridge.failProtectionRestore = true;
         Object.defineProperty(navigator, 'usb', {value: {requestDevice: async () => window.mockBridge}});
-        Object.defineProperty(navigator, 'serial', {value: {requestPort: async () => options.wrongPort ? new FakeRP2040() : window.mockBridge}});
+        Object.defineProperty(navigator, 'serial', {value: {requestPort: async () => {
+          window.selectedPort = options.wrongPort ? new FakeRP2040() : window.mockBridge;
+          return window.selectedPort;
+        }}});
         let included;
         Object.defineProperty(window, 'D10Firmware', {configurable: true,
           get: () => included, set: asset => {
@@ -80,7 +83,7 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
         if (options.oldBridge) return;
         await page.locator('#connect-serial').click();
         await page.waitForFunction(() => !document.getElementById('install').disabled);
-        assert.equal(await page.evaluate(() => window.mockBridge.baudRate), 921600);
+        assert.equal(await page.evaluate(() => window.selectedPort.baudRate), 460800);
       }
       return {page, errors, requests, connect};
     }
@@ -103,6 +106,8 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
     const download = happy.page.waitForEvent('download'); await happy.page.locator('#report').click();
     const report = JSON.parse(fs.readFileSync(await (await download).path()));
     assert(report.verified && report.backupSaved && report.cpuResetVerified);
+    assert.equal(report.baudRate, 460800);
+    assert.equal(report.divisor, 104);
     assert.equal(report.firmwareSha256, asset.manifest.sha256);
     assert(report.events.findIndex(e => e.event === 'recovery_backup_saved') < report.events.findIndex(e => e.event === 'sector_attempted'));
     await happy.page.screenshot({path: '/tmp/d10-simple-complete.png', fullPage: true}); await close(happy);
@@ -139,6 +144,7 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
     await stop.page.locator('#cancel').click();
     await stop.page.waitForFunction(() => document.getElementById('status').textContent === 'Stopped safely. Your previous firmware was restored.', {timeout:60000});
     assert.deepEqual(Uint8Array.from(await stop.page.evaluate(() => Array.from(window.mockBridge.memory))), original);
+    assert.equal(await stop.page.evaluate(() => window.mockBridge.baudRate), 460800);
     assert.equal(await stop.page.evaluate(() => window.mockBridge.protection), 0x382c);
     assert(await stop.page.locator('#after-install').isHidden()); await close(stop);
 

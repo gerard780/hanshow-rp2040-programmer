@@ -2,7 +2,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const {SerialIO, USBBridge, RP2040Reader, equal} = FirmwareDump;
-  const BAUD = 921600;
+  const BAUD = 460800;
   const supported = isSecureContext && !!navigator.usb && !!navigator.serial &&
     !!crypto.subtle && typeof window.showSaveFilePicker === 'function';
   let firmware = null, bridge = null, io = null, busy = false, controller = null, completed = false;
@@ -49,7 +49,7 @@
       await port.open({baudRate: BAUD, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none', bufferSize: 8192});
       await port.setSignals({dataTerminalReady: true, requestToSend: false});
       io = new SerialIO(port);
-      $('serial-status').textContent = 'Port open. The programmer/port match will be checked before reading.';
+      $('serial-status').textContent = 'Port open at 460800 baud. The programmer/port match will be checked before reading.';
       $('status').textContent = 'Ready to save your backup and install D10.';
     } catch (error) {
       if (port?.readable && !io) try { await port.close(); } catch (_) {}
@@ -144,7 +144,7 @@
   }
   (async () => {
     try {
-      log('D10 installer page revision 2026-10-18.2');
+      log('D10 installer page revision 2026-10-18.3 · 460800 baud');
       const bytes = Uint8Array.from(atob(D10Firmware.base64), c => c.charCodeAt(0));
       const meta = D10Firmware.manifest;
       if (bytes.length !== meta.bytes || await FirmwareFlash.digest(bytes) !== meta.sha256) throw new Error('Included firmware failed its integrity check. Reload the page before connecting.');

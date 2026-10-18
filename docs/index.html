@@ -93,7 +93,7 @@
     return out;
   }
   const stop = () => encode([0xff]);
-  const baudRates = [921600, 1500000, 2000000];
+  const baudRates = [460800, 921600, 1500000, 2000000];
   function defaultBaud(version) { return ['1.4', '1.5', '1.6'].includes(version) ? 2000000 : 921600; }
   const header = (address, mode) => [0x5a, (address >> 16) & 255, (address >> 8) & 255, address & 255, mode];
   function writePacket(address, data) {

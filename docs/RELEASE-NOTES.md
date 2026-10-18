@@ -1,3 +1,12 @@
+# Slower D10 connection — page 2026-10-18.3
+
+The guided D10 page now reads, programs and recovers at 460800 baud, half its
+previous rate. The existing RP2040 v1.6 already accepts this rate; no programmer
+update is required. The SWS reader and guarded writer accept it, and tests check
+the actual selected rate and capture divider 104. Backup validation and write
+protection remain required. The D10 firmware itself is unchanged. Physical
+reliability at the lower rate still needs confirmation.
+
 # D10 backup-read diagnostics — page 2026-10-18.2
 
 The generic backup failure could not distinguish nonmatching reads from

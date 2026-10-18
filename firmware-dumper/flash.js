@@ -224,7 +224,7 @@
     try {
       const bridge = await reader.bridge.status();
       requireValue(bridge.version === '1.6', 'Browser flashing requires the tested RP2040 v1.6 UF2');
-      requireValue(!apply || [921600, 1500000].includes(reader.baudRate), 'Browser writes require 1.5 Mbaud or 921600 baud. Disconnect and select the lower rate before opening the SWS port; 2 Mbaud remains available for readback and checks');
+      requireValue(!apply || [460800, 921600, 1500000].includes(reader.baudRate), 'Browser writes require 1.5 Mbaud or 921600 baud, or 460800 baud for slower operation. Disconnect and select the lower rate before opening the SWS port; 2 Mbaud remains available for readback and checks');
       cancelled(signal);
       const identity = await reader.activate(options);
       requireValue(identity.chipId === '026255', 'Flashing supports chip 026255 only');

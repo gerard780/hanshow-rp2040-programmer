@@ -161,7 +161,7 @@ test('capture timing and metadata follow selected baud; legacy defaults stay unc
   assert.equal(defaultBaud('1.3'), 921600);
   assert.equal(defaultBaud('1.4'), 2000000);
   assert.equal(defaultBaud('1.5'), 2000000);
-  for (const [baudRate, divisor] of [[921600, 52], [1500000, 32], [2000000, 24]]) {
+  for (const [baudRate, divisor] of [[460800, 104], [921600, 52], [1500000, 32], [2000000, 24]]) {
     const env = await setup(baudRate);
     const logs = []; env.reader.log = message => logs.push(message);
     try {

@@ -37,7 +37,7 @@
   <section aria-labelledby="install-heading">
     <h2 id="install-heading"><span class="step">3</span>Save a backup &amp; install</h2>
     <p>Click below and choose where to save your backup. We’ll read the tag twice, save and check that backup, then install D10 and verify it.</p>
-    <p class="hint">Keep the page open, USB connected and tag powered until it finishes. This replaces the tag’s current application.</p>
+    <p class="hint">This page uses a slower 460800-baud connection. Reading and installation can take several minutes. Keep the page open, USB connected and tag powered until it finishes. This replaces the tag’s current application.</p>
     <div class="actions"><button id="install" class="primary" disabled>Save backup &amp; install D10</button><button id="cancel" disabled>Stop safely</button></div>
     <p id="status" role="status" aria-live="polite">Start by connecting your programmer.</p>
     <progress id="progress" max="1" value="0" aria-label="Installation progress"></progress>
@@ -54,7 +54,7 @@
     </div>
   </section>
   <details><summary>Activity and technical details</summary>
-    <p class="hint">D10 discovery · experimental · page revision 2026-10-18.2. Supported 437 waveform banks: 0ASSPQ0NX, 0BNSPQ0UK and 0BNSPQ069. Installation uses the existing v1.6 writer at 921600 baud with conservative writes. Files stay on your computer. Browser tests use simulated devices; physical installation through this page remains unverified.</p>
+    <p class="hint">D10 discovery · experimental · page revision 2026-10-18.3. Supported 437 waveform banks: 0ASSPQ0NX, 0BNSPQ0UK and 0BNSPQ069. Installation uses the existing v1.6 writer at 460800 baud with conservative writes. Files stay on your computer. Browser tests use simulated devices; physical installation through this page remains unverified.</p>
     <pre id="log" role="log"></pre>
   </details>
   <p class="footer"><a href="../tools/">Full read/write tools</a> · <a href="https://gist.github.com/gerard780/4c4f7510a67268b1721486249fa121b2">D10 firmware and notes</a></p>

@@ -8,7 +8,8 @@ SWS port, then click **Save backup & install D10** and choose a new backup file.
 The page reads the tag twice, matches the captured 437 product record and one
 of the three known complete native waveform banks, saves and rereads the full
 backup, then writes and verifies the application. Keep the tag powered and the
-page open until completion. Connection speed and conservative writes are fixed.
+page open until completion. The connection uses 460800 baud (half of 921600)
+with conservative writes. No programmer update is needed beyond v1.6.
 
 The included firmware is pinned to the [D10 gist](https://gist.github.com/gerard780/4c4f7510a67268b1721486249fa121b2),
 SHA-256 `cea41f2aad7b9b0f6a4d3a89be401764a6abc5d50ebb167c628625f949ff1927`.
@@ -45,8 +46,9 @@ in-session rollback. With saving enabled, the chosen full backup file must be
 closed, reread and verified before unlock. Check firmware is a dry run; Flash
 application additionally requires the application acknowledgement.
 
-Browser writes require **1.5 Mbaud or 921600 baud**, selected before opening the
-SWS port. 2 Mbaud remains available for readback and Check firmware. Serial chunks
+Browser writes accept **460800, 921600 or 1500000 baud**. The simple D10 page
+uses 460800; the full tools offer 921600 or 1.5 Mbaud for writes, selected before
+opening the SWS port. 2 Mbaud remains available for readback and Check firmware. Serial chunks
 are acknowledged individually; recovery clears interrupted framing and stale
 receive bytes before verifying the halted CPU and target UID. Recovery retains
 the selected baud because reopening the serial port can toggle reset. If recovery

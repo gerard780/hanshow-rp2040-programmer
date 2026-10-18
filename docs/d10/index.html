@@ -38,7 +38,7 @@
   <section aria-labelledby="install-heading">
     <h2 id="install-heading"><span class="step">3</span>Save a backup &amp; install</h2>
     <p>Click below and choose where to save your backup. We’ll read the tag twice, save and check that backup, then install D10 and verify it.</p>
-    <p class="hint">Keep the page open, USB connected and tag powered until it finishes. This replaces the tag’s current application.</p>
+    <p class="hint">This page uses a slower 460800-baud connection. Reading and installation can take several minutes. Keep the page open, USB connected and tag powered until it finishes. This replaces the tag’s current application.</p>
     <div class="actions"><button id="install" class="primary" disabled>Save backup &amp; install D10</button><button id="cancel" disabled>Stop safely</button></div>
     <p id="status" role="status" aria-live="polite">Start by connecting your programmer.</p>
     <progress id="progress" max="1" value="0" aria-label="Installation progress"></progress>
@@ -55,7 +55,7 @@
     </div>
   </section>
   <details><summary>Activity and technical details</summary>
-    <p class="hint">D10 discovery · experimental · page revision 2026-10-18.2. Supported 437 waveform banks: 0ASSPQ0NX, 0BNSPQ0UK and 0BNSPQ069. Installation uses the existing v1.6 writer at 921600 baud with conservative writes. Files stay on your computer. Browser tests use simulated devices; physical installation through this page remains unverified.</p>
+    <p class="hint">D10 discovery · experimental · page revision 2026-10-18.3. Supported 437 waveform banks: 0ASSPQ0NX, 0BNSPQ0UK and 0BNSPQ069. Installation uses the existing v1.6 writer at 460800 baud with conservative writes. Files stay on your computer. Browser tests use simulated devices; physical installation through this page remains unverified.</p>
     <pre id="log" role="log"></pre>
   </details>
   <p class="footer"><a href="../tools/">Full read/write tools</a> · <a href="https://gist.github.com/gerard780/4c4f7510a67268b1721486249fa121b2">D10 firmware and notes</a></p>
@@ -84,7 +84,7 @@
     return out;
   }
   const stop = () => encode([0xff]);
-  const baudRates = [921600, 1500000, 2000000];
+  const baudRates = [460800, 921600, 1500000, 2000000];
   function defaultBaud(version) { return ['1.4', '1.5', '1.6'].includes(version) ? 2000000 : 921600; }
   const header = (address, mode) => [0x5a, (address >> 16) & 255, (address >> 8) & 255, address & 255, mode];
   function writePacket(address, data) {
@@ -720,7 +720,7 @@
     try {
       const bridge = await reader.bridge.status();
       requireValue(bridge.version === '1.6', 'Browser flashing requires the tested RP2040 v1.6 UF2');
-      requireValue(!apply || [921600, 1500000].includes(reader.baudRate), 'Browser writes require 1.5 Mbaud or 921600 baud. Disconnect and select the lower rate before opening the SWS port; 2 Mbaud remains available for readback and checks');
+      requireValue(!apply || [460800, 921600, 1500000].includes(reader.baudRate), 'Browser writes require 1.5 Mbaud or 921600 baud, or 460800 baud for slower operation. Disconnect and select the lower rate before opening the SWS port; 2 Mbaud remains available for readback and checks');
       cancelled(signal);
       const identity = await reader.activate(options);
       requireValue(identity.chipId === '026255', 'Flashing supports chip 026255 only');
@@ -956,7 +956,7 @@
 (() => {
   const $ = id => document.getElementById(id);
   const {SerialIO, USBBridge, RP2040Reader, equal} = FirmwareDump;
-  const BAUD = 921600;
+  const BAUD = 460800;
   const supported = isSecureContext && !!navigator.usb && !!navigator.serial &&
     !!crypto.subtle && typeof window.showSaveFilePicker === 'function';
   let firmware = null, bridge = null, io = null, busy = false, controller = null, completed = false;
@@ -1003,7 +1003,7 @@
       await port.open({baudRate: BAUD, dataBits: 8, stopBits: 1, parity: 'none', flowControl: 'none', bufferSize: 8192});
       await port.setSignals({dataTerminalReady: true, requestToSend: false});
       io = new SerialIO(port);
-      $('serial-status').textContent = 'Port open. The programmer/port match will be checked before reading.';
+      $('serial-status').textContent = 'Port open at 460800 baud. The programmer/port match will be checked before reading.';
       $('status').textContent = 'Ready to save your backup and install D10.';
     } catch (error) {
       if (port?.readable && !io) try { await port.close(); } catch (_) {}
@@ -1098,7 +1098,7 @@
   }
   (async () => {
     try {
-      log('D10 installer page revision 2026-10-18.2');
+      log('D10 installer page revision 2026-10-18.3 · 460800 baud');
       const bytes = Uint8Array.from(atob(D10Firmware.base64), c => c.charCodeAt(0));
       const meta = D10Firmware.manifest;
       if (bytes.length !== meta.bytes || await FirmwareFlash.digest(bytes) !== meta.sha256) throw new Error('Included firmware failed its integrity check. Reload the page before connecting.');

@@ -42,8 +42,9 @@ existing v1.6 programmer UF2; no new RP2040 firmware is needed. Browser writes
 are experimental and software-tested with simulated devices; physical browser
 flashing and complete 437 installation remain untested.
 
-Browser writes require **1.5 Mbaud or 921600 baud**, selected before opening the
-SWS port. 2 Mbaud remains available for readback and read-only checks. The browser
+The simple D10 page uses **460800 baud** with the existing v1.6 programmer.
+The full tools offer **1.5 Mbaud or 921600 baud** for writes, selected before
+opening the SWS port. 2 Mbaud remains available for readback and read-only checks. The browser
 acknowledges each serial chunk and resynchronizes before recovery. If an
 installation fails with recovery unverified, save the emergency backup/report;
 use the [original-backup recovery instructions](docs/RECOVERY.md), rather than
