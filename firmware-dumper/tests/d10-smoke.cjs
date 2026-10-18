@@ -66,6 +66,15 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
         const activate = FirmwareDump.RP2040Reader.prototype.activate;
         FirmwareDump.RP2040Reader.prototype.activate = function (options) { return activate.call(this, {...options, activationMs: 100}); };
       });
+      if (options.differingReads || options.blankReads) await page.evaluate(({differingReads}) => {
+        const fullRead = FirmwareFlash.FlashSession.prototype.fullRead;
+        FirmwareFlash.FlashSession.prototype.fullRead = async function (phase, ...args) {
+          const bytes = await fullRead.call(this, phase, ...args);
+          if (!differingReads) bytes.fill(255);
+          else if (phase === 'Reading tag (pass 2)') bytes[0x1234] ^= 1;
+          return bytes;
+        };
+      }, options);
       async function connect() {
         await page.locator('#connect-usb').click();
         if (options.oldBridge) return;
@@ -108,6 +117,22 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
     const cancelled = await scenario({cancelPicker:true}); await cancelled.connect(); await cancelled.page.locator('#install').click();
     await cancelled.page.waitForFunction(() => document.getElementById('status').textContent.startsWith('No backup location'));
     assert.equal(await cancelled.page.evaluate(() => window.mockBridge.tx), 0); await close(cancelled);
+
+    for (const options of [{differingReads:true}, {blankReads:true}]) {
+      const c = await scenario(options); await c.connect(); await c.page.locator('#install').click();
+      await c.page.waitForFunction(() => document.getElementById('status').textContent === 'Backup check failed. No firmware was written.', {timeout:60000});
+      assert.match(await c.page.locator('#log').textContent(), /Read 1 SHA-256: [0-9a-f]{64}; Read 2 SHA-256: [0-9a-f]{64}|entirely FF/);
+      if (options.differingReads) assert.match(await c.page.locator('#error').textContent(), /0x001234/);
+      else assert.match(await c.page.locator('#error').textContent(), /Both full backup reads are entirely FF/);
+      const download = c.page.waitForEvent('download'); await c.page.locator('#report').click();
+      const report = JSON.parse(fs.readFileSync(await (await download).path()));
+      assert(!report.backupValidation.valid && report.cpuResetVerified);
+      assert.equal(report.backupValidation.mismatchedBytes, options.differingReads ? 1 : 0);
+      assert.deepEqual(await c.page.evaluate(() => window.mockBridge.eraseOrder), []);
+      assert.deepEqual(await c.page.evaluate(() => window.mockBridge.statusWrites), []);
+      assert.equal(await c.page.evaluate(() => window.savedBackup), null);
+      assert(await c.page.locator('#after-install').isHidden()); await close(c);
+    }
 
     const stop = await scenario(); await stop.connect(); await stop.page.locator('#install').click();
     await stop.page.waitForFunction(() => window.mockBridge.eraseOrder.length > 0, {timeout:60000});

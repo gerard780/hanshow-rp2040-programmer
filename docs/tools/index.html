@@ -558,6 +558,21 @@
     }
     return (crc ^ 0xffffffff) >>> 0;
   }
+  async function inspectBackups(first, second) {
+    requireValue(first.length === SIZE && second.length === SIZE, 'Incomplete full backups; writes refused');
+    const reads = await Promise.all([first, second].map(async bytes => ({
+      sha256: await digest(bytes), allZero: bytes.every(byte => byte === 0), allFF: bytes.every(byte => byte === 255),
+    })));
+    let mismatchedBytes = 0;
+    const sectors = new Set(), firstDifferences = [];
+    for (let offset = 0; offset < SIZE; offset++) {
+      if (first[offset] === second[offset]) continue;
+      mismatchedBytes++; sectors.add(Math.floor(offset / SECTOR) * SECTOR);
+      if (firstDifferences.length < 8) firstDifferences.push({offset, read1: first[offset], read2: second[offset]});
+    }
+    return {reads, mismatchedBytes, differingSectors: [...sectors], firstDifferences,
+      valid: mismatchedBytes === 0 && reads.every(read => !read.allZero && !read.allFF)};
+  }
   async function validateBinary(input, {allowJournalRecords = false} = {}) {
     const bytes = Uint8Array.from(input);
     requireValue(bytes.length >= 32 && bytes.length <= LIMIT, 'Select an application .bin of 32 to 131072 bytes; full tag dumps and UF2 files are not supported');
@@ -763,7 +778,22 @@
       Object.assign(report, identity, {jedecId: 'eb6013', flashUid: hex(uid), protectionOriginal: protection, bridgeVersion: bridge.version});
       before = await flash.fullRead('Reading tag (pass 1)', signal, progress);
       const second = await flash.fullRead('Reading tag (pass 2)', signal, progress);
-      requireValue(equal(before, second) && !before.every(byte => byte === 0) && !before.every(byte => byte === 255), 'Fresh full backups differ or are inconclusive; writes refused');
+      const validation = await inspectBackups(before, second);
+      report.backupValidation = validation;
+      event('backup_read_hashes', {message: validation.reads.map((read, i) => `Read ${i + 1} SHA-256: ${read.sha256}${read.allZero ? ' (entirely 00)' : read.allFF ? ' (entirely FF)' : ''}`).join('; ')});
+      if (!validation.valid) {
+        const where = offset => `0x${offset.toString(16).padStart(6, '0')}`;
+        const byte = value => value.toString(16).padStart(2, '0');
+        let message;
+        if (validation.mismatchedBytes) {
+          const first = validation.firstDifferences[0];
+          message = `Fresh full backups differ: ${validation.mismatchedBytes} byte${validation.mismatchedBytes === 1 ? '' : 's'} across ${validation.differingSectors.length} sector${validation.differingSectors.length === 1 ? '' : 's'}; first mismatch at ${where(first.offset)} (read 1 ${byte(first.read1)}, read 2 ${byte(first.read2)}); writes refused`;
+          event('backup_read_differences', {message: 'First differences (read 1/read 2): ' + validation.firstDifferences.map(d => `${where(d.offset)} ${byte(d.read1)}/${byte(d.read2)}`).join(', ')});
+        } else {
+          message = `Both full backup reads are entirely ${validation.reads[0].allZero ? '00' : 'FF'}; no usable backup; writes refused`;
+        }
+        throw new Error(message);
+      }
       if (options.expectedBackupSha256) requireValue(await digest(before) === options.expectedBackupSha256,
         'Tag contents changed after original-image recovery; application writes refused');
       if (options.expectedFlashUidSha256) requireValue(await digest(uid) === options.expectedFlashUidSha256,
@@ -863,7 +893,7 @@
     }
     return report;
   }
-  const api = {D9_HEADER, validateBinary, prepareFromBinary, validatePlan, checkBackup, FlashSession, installApplication, digest, crc32};
+  const api = {D9_HEADER, inspectBackups, validateBinary, prepareFromBinary, validatePlan, checkBackup, FlashSession, installApplication, digest, crc32};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.FirmwareFlash = api;
 })(globalThis);

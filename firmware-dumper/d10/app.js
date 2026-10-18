@@ -124,6 +124,9 @@
         completed = true; render();
         $('status').textContent = 'Installation stopped. Keep the tag powered.';
         $('detail').textContent = 'Recovery or protection could not be verified. Keep your saved backup and save the report. Do not reset the tag or retry a normal installation; use the recovery instructions.';
+      } else if (report?.backupValidation?.valid === false) {
+        $('status').textContent = 'Backup check failed. No firmware was written.';
+        $('detail').textContent = 'Save the installation report. Check the SWS connections, short wires, common ground and stable 3.3 V power before retrying. Keep your existing backups; these reads were not accepted as a usable backup.';
       } else {
         $('status').textContent = report?.recoveryVerified ? 'Stopped safely. Your previous firmware was restored.' : 'D10 was not installed.';
         $('detail').textContent = report?.backupSaved ? `Keep your backup (${handle.name}) and save the report. Reconnect if you want to try again.` : 'No verified backup was saved. Read the error above before reconnecting.';
@@ -141,6 +144,7 @@
   }
   (async () => {
     try {
+      log('D10 installer page revision 2026-10-18.2');
       const bytes = Uint8Array.from(atob(D10Firmware.base64), c => c.charCodeAt(0));
       const meta = D10Firmware.manifest;
       if (bytes.length !== meta.bytes || await FirmwareFlash.digest(bytes) !== meta.sha256) throw new Error('Included firmware failed its integrity check. Reload the page before connecting.');

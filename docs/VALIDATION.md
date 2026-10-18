@@ -1,5 +1,16 @@
 # Programmer validation
 
+## Backup diagnostics — page 2026-10-18.2
+
+The comparison tests distinguish matching nonblank reads, byte disagreements
+across sectors, matching blank reads and incomplete captures. The existing
+single-bin mismatch test now checks the exact failure address and saved
+diagnostic fields as well as zero status writes/erases. Chromium exercises
+both differing and matching blank reads, verifies their downloadable reports,
+and checks that neither case saves an accepted backup or writes flash.
+These checks use simulated devices and do not diagnose the physical cause of
+the user-reported preflight failure.
+
 ## Guided D10 page — 18 October 2026
 
 The D10 target/pinning tests and existing browser-backend test files pass.

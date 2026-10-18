@@ -1,3 +1,13 @@
+# D10 backup-read diagnostics — page 2026-10-18.2
+
+The generic backup failure could not distinguish nonmatching reads from
+matching blank data. Installation reports now include both SHA-256 hashes,
+blank-data flags, the total differing byte count, affected 4 KiB sectors and
+up to eight differing byte pairs with absolute addresses. The D10 page explains
+that no firmware was written and offers the report for diagnosis. Two complete
+matching nonblank reads remain mandatory; no retry accepts inconsistent data.
+Firmware, connection timing and flash/recovery behavior are unchanged.
+
 # Simple D10 installer — 18 October 2026
 
 The new `/d10/` page includes the pinned D10 discovery firmware and guides users

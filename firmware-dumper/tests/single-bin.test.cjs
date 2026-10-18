@@ -73,7 +73,13 @@ test('skipping the saved backup still requires two matching reads before any wri
     if (update.phase === 'Reading tag (pass 1)' && update.done === update.total) e.fake.corruptAtBlock = e.fake.blockRequests + 1;
   };
   try {
-    await assert.rejects(installApplication(e.reader, e.plan.application, e.options), /Fresh full backups differ/);
+    let failure;
+    try { await installApplication(e.reader, e.plan.application, e.options); } catch (error) { failure = error; }
+    assert.match(failure.message, /Fresh full backups differ: 1 byte across 1 sector; first mismatch at 0x000000/);
+    assert.equal(failure.report.backupValidation.mismatchedBytes, 1);
+    assert.deepEqual(failure.report.backupValidation.differingSectors, [0]);
+    assert.equal(failure.report.backupValidation.firstDifferences[0].offset, 0);
+    assert(failure.report.cpuResetVerified);
     assert.deepEqual(e.fake.statusWrites, []); assert.deepEqual(e.fake.eraseOrder, []);
   } finally { await e.close(); }
 });

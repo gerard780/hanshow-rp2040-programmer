@@ -13,7 +13,7 @@
     "tools/speed/write_validation.py": "bcd4faba70930438e3b977354d1a4fd02fc825667feb28883c86b23dd1ee6139",
     "flash_application.py": "232e6e986886f12f19bbad159700e5680f6107f7232c67bce759cc9b857d4226",
     "tools/speed/application_install.py": "77513fdf618cd443df5543856782b69e42aea80c065535714232e55467fafa41",
-    "firmware-dumper/flash.js": "7d3867e6191469437460dc8a68d791414af4dc305fcb16383f217180eb80d134",
+    "firmware-dumper/flash.js": "346fed2c3d551fafa37887a48762d8525d0673bb72d44a2961cddaad86694eab",
     "firmware-dumper/app.js": "30e5298b011736e4f9bd5ca3fb10bb0295885b7449e099ff52e9ab266951ab30",
     "firmware-dumper/build_standalone.py": "96cd8c796f4a17f2fad5182cf459ba80c89022809fa1cc0d5065730239371403",
     "firmware-dumper/discovery.js": "9dbd971507227b59457c7bcb33625930109f7b0be84c3140ed191c9e06f9081c",
@@ -28,14 +28,16 @@
     "firmware-dumper/support/config.js": "75223207b8aede0ee12e1d6ac2ddec1fd99cbf00c3f61267685009fe162225f8",
     "firmware-dumper/support/firmware.js": "c4f932a63fca0a22d29cf1c84d0de1f31a16ae67766890d7f2890b2def65b407",
     "firmware-dumper/support/app.js": "47bb405a89640c3c466dfa06a362f6db000c9f7671f4d497d0be33176542701a",
-    "firmware-dumper/d10/app.js": "68e566d07bb5c40c13d9a46eace07cb73cd18f25bf6044473e762b89f7785d67",
+    "firmware-dumper/d10/app.js": "b8a2576ce6b4113df628fcd3c4f5c351ec45da38610399f3297026352efc347c",
     "firmware-dumper/d10/controller.html": "7bbf8e31bc9993b35443e2f0dfafefd98e57b1b6e3b1109e24780c34263ec31a",
     "firmware-dumper/d10/expected-screen.png": "e50a111bac1f468877aaf436faf44d8cc23405e46f5426e2b60e09126ab84122",
     "firmware-dumper/d10/firmware.js": "12b325c42c58041b02ca2e9fe159008bae6d4f9e6e944e28619357074b5f6a75",
     "firmware-dumper/d10/target.js": "ed4bf93d114a5f8816866b13a15130c984c2dc27d0bf9a40254441018f5a7995",
-    "firmware-dumper/d10/template.html": "e080d83dd9f915871ae1cb84450ec0f0ede2180a384742d5de7e6a4e30ad945f",
+    "firmware-dumper/d10/template.html": "2f8de4b06cd421a4f74060b22cfcdc7137cecc6fa110ab7eaf8d405001f9103d",
     "firmware-dumper/tests/d10.test.cjs": "676c84f31c9d1ee4067ec5bd85d8af1ae906ebed902fa61aa67ee4475319e68a",
-    "firmware-dumper/tests/d10-smoke.cjs": "928a5c1a840beaabd3ebcb551bafd2013812e8b5d790883a1a5b1122f3b21ac8"
+    "firmware-dumper/tests/d10-smoke.cjs": "1ee603b38f40907a8e42cc099785269f5e99681683cdb2d4526a57dd70a02569",
+    "firmware-dumper/tests/backup-validation.test.cjs": "e1469454d1fe691258fb048d30b2f11328f30173d3274fc3d5be3a3914ffcb4a",
+    "firmware-dumper/tests/single-bin.test.cjs": "a4be84c7423c596b056365f982a54168e7c7348c2a58d39475f1b796cb0f57f4"
   },
   "upstream_readers": [
     {
@@ -73,7 +75,7 @@
     "gist": "https://gist.github.com/gerard780/92feab930abb5c7cd4f30b419c8dbc4d",
     "gist_revision": "e2c08f926a6be2b5d51863aea84e235d94b46cfe"
   },
-  "d10_page_revision": "2026-10-18",
+  "d10_page_revision": "2026-10-18.2",
   "d10_application": {
     "name": "EXPERIMENTAL_ATC_Nebular_437_D10_discovery.bin",
     "sha256": "cea41f2aad7b9b0f6a4d3a89be401764a6abc5d50ebb167c628625f949ff1927",

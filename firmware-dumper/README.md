@@ -253,6 +253,14 @@ firmware-dumper/tests/d10.test.cjs` and, with the repo served on localhost:8778,
 devices; they install the actual pinned binary without executing tag code.
 Physical D10/browser operation remains unverified.
 
+Page revision `2026-10-18.2` distinguishes disagreements between full reads
+from matching all-00/all-FF data. The report's `backupValidation` contains both
+SHA-256 hashes, blank flags, differing-byte count, affected sector offsets and
+up to eight `{offset, read1, read2}` byte samples. Both the activity log and
+error show the first mismatch address. Invalid reads never reach backup saving,
+unlock, erase or programming. These diagnostics do not identify the physical
+cause of an unstable read.
+
 ## Temporary browser recovery page (2026-10-13.4)
 
 `support/template.html`, `support/config.js`, `support/firmware.js` and
