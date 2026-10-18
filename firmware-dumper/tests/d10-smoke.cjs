@@ -28,6 +28,15 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
         if (options.badWaveform) window.mockBridge.memory[0x79000] ^= 1;
         if (options.failedRecovery) window.mockBridge.ignoreErase = true;
         if (options.protectionFailure) window.mockBridge.failProtectionRestore = true;
+        if (options.transientWrite) {
+          const execute = window.mockBridge.executeFlash.bind(window.mockBridge); let injected = false;
+          window.mockBridge.executeFlash = command => {
+            execute(command);
+            if (!injected && command[0] === 2 && command[1] === 0 && command[2] === 0x1f && command[3] === 0xc0) {
+              window.mockBridge.memory[0x1005] ^= 1; injected = true;
+            }
+          };
+        }
         Object.defineProperty(navigator, 'usb', {value: {requestDevice: async () => window.mockBridge}});
         Object.defineProperty(navigator, 'serial', {value: {requestPort: async () => {
           window.selectedPort = options.wrongPort ? new FakeRP2040() : window.mockBridge;
@@ -69,12 +78,13 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
         const activate = FirmwareDump.RP2040Reader.prototype.activate;
         FirmwareDump.RP2040Reader.prototype.activate = function (options) { return activate.call(this, {...options, activationMs: 100}); };
       });
-      if (options.differingReads || options.blankReads) await page.evaluate(({differingReads}) => {
+      if (options.differingReads || options.blankReads || options.transientReads) await page.evaluate(({differingReads, transientReads}) => {
         const fullRead = FirmwareFlash.FlashSession.prototype.fullRead;
+        let secondPasses = 0;
         FirmwareFlash.FlashSession.prototype.fullRead = async function (phase, ...args) {
           const bytes = await fullRead.call(this, phase, ...args);
-          if (!differingReads) bytes.fill(255);
-          else if (phase === 'Reading tag (pass 2)') bytes[0x1234] ^= 1;
+          if (!differingReads && !transientReads) bytes.fill(255);
+          else if (phase === 'Reading tag (pass 2)' && (!transientReads || ++secondPasses === 1)) bytes[0x1234] ^= 1;
           return bytes;
         };
       }, options);
@@ -92,7 +102,7 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
       assert(c.requests.every(request => request === url), 'Installer requested an external resource');
       await c.page.close();
     }
-    const happy = await scenario(); await happy.connect();
+    const happy = await scenario({transientReads:true,transientWrite:true}); await happy.connect();
     await happy.page.screenshot({path: '/tmp/d10-simple-ready.png', fullPage: true});
     await happy.page.locator('#install').click();
     await happy.page.waitForFunction(() => document.getElementById('status').textContent === 'D10 installed and verified.', {timeout: 120000});
@@ -106,6 +116,11 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
     const download = happy.page.waitForEvent('download'); await happy.page.locator('#report').click();
     const report = JSON.parse(fs.readFileSync(await (await download).path()));
     assert(report.verified && report.backupSaved && report.cpuResetVerified);
+    assert.equal(report.backupReadLimit, 3); assert.equal(report.backupReadAttempts.length, 2);
+    assert(!report.backupReadAttempts[0].validation.valid && report.backupReadAttempts[1].validation.valid);
+    assert.equal(report.sectorWriteLimit, 3);
+    const writeAttempts = report.sectorWriteAttempts.filter(a => a.offset === 4096);
+    assert.equal(writeAttempts.length, 2); assert.equal(writeAttempts[0].status, 'failed'); assert.equal(writeAttempts[1].status, 'verified');
     assert.equal(report.baudRate, 460800);
     assert.equal(report.divisor, 104);
     assert.equal(report.firmwareSha256, asset.manifest.sha256);
@@ -132,6 +147,7 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
       const download = c.page.waitForEvent('download'); await c.page.locator('#report').click();
       const report = JSON.parse(fs.readFileSync(await (await download).path()));
       assert(!report.backupValidation.valid && report.cpuResetVerified);
+      assert.equal(report.backupReadAttempts.length, 3);
       assert.equal(report.backupValidation.mismatchedBytes, options.differingReads ? 1 : 0);
       assert.deepEqual(await c.page.evaluate(() => window.mockBridge.eraseOrder), []);
       assert.deepEqual(await c.page.evaluate(() => window.mockBridge.statusWrites), []);

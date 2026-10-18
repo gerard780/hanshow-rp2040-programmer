@@ -1,5 +1,21 @@
 # Programmer validation
 
+## Read and sector-write retries — page 2026-10-18.4
+
+Backup retry tests cover transient and persistent mismatches, partial native
+read errors, changed UID/protection, failed resynchronization, persistent fault
+counters, cancellation and invalid limits. No rejected attempt is saved or
+used for programming; a successful retry requires a complete new matching pair.
+
+Write retry tests cover damaged programmed data, transient verification errors
+resolved without another erase, ignored erases, bounded exhaustion followed by
+original-image recovery, inconsistent retry readback, faults, changed identity
+or protection, cancellation and invalid limits. The original single-attempt
+tests remain passing. Chromium installs the actual D10 binary after an injected
+read mismatch and an injected write mismatch, then verifies the complete image,
+saved original backup, sector-zero-last order and original protection. These
+are simulated-device results; no physical bench was accessed.
+
 ## Lower-rate D10 installer — page 2026-10-18.3
 
 The readback timing tests include 460800 baud with divider 104. Guided-page

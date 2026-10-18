@@ -6,7 +6,7 @@
   const supported = isSecureContext && !!navigator.usb && !!navigator.serial &&
     !!crypto.subtle && typeof window.showSaveFilePicker === 'function';
   let firmware = null, bridge = null, io = null, busy = false, controller = null, completed = false;
-  let reportURL = null, started = 0;
+  let reportURL = null, started = 0, backupAttempt = 1;
   function log(message) {
     $('log').textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
     $('log').scrollTop = $('log').scrollHeight;
@@ -67,7 +67,7 @@
   function progress(update) {
     $('progress').max = update.total; $('progress').value = update.done;
     $('status').textContent = `${update.phase}: ${Math.round(100 * update.done / update.total)}%`;
-    $('detail').textContent = `${Math.round((performance.now() - started) / 1000)} seconds elapsed. Keep this page open and the tag powered.`;
+    $('detail').textContent = `${update.phase.startsWith('Reading tag') ? `Backup attempt ${backupAttempt}/3 · ` : ''}${Math.round((performance.now() - started) / 1000)} seconds elapsed. Keep this page open and the tag powered.`;
   }
   $('install').onclick = async () => {
     if (busy || !firmware || !bridge || !io || completed) return;
@@ -82,14 +82,14 @@
       if (error.name !== 'AbortError') $('error').textContent = error.message;
       busy = false; render(); return;
     }
-    controller = new AbortController(); started = performance.now(); render();
+    controller = new AbortController(); started = performance.now(); backupAttempt = 1; render();
     if (reportURL) { URL.revokeObjectURL(reportURL); reportURL = null; }
     $('result').hidden = true; $('report').removeAttribute('href'); $('after-install').hidden = true;
     $('progress').value = 0; $('status').textContent = 'Checking the tag…';
     let report, failure;
     try {
       report = await FirmwareFlash.installApplication(new RP2040Reader(io, bridge, log, BAUD), firmware, {
-        apply: true, saveRecoveryBackup: true, conservative: true, pulseReset: true, activationMs: 3000,
+        apply: true, saveRecoveryBackup: true, conservative: true, pulseReset: true, activationMs: 3000, backupReadAttempts: 3, sectorWriteAttempts: 3,
         signal: controller.signal, progress,
         saveBackup: async bytes => {
           // Called after matching full reads and before any unlock/erase/program.
@@ -104,7 +104,10 @@
           log(`Backup saved and reread: ${handle.name}; SHA-256 ${digest}.`);
           return digest;
         },
-        onEvent: (name, details) => log(`${name.replaceAll('_', ' ')}${details.offset === undefined ? '' : ` at 0x${details.offset.toString(16)}`}${details.message ? `: ${details.message}` : ''}`),
+        onEvent: (name, details) => {
+          if (name === 'backup_read_attempt') backupAttempt = details.attempt;
+          log(`${name.replaceAll('_', ' ')}${details.offset === undefined ? '' : ` at 0x${details.offset.toString(16)}`}${details.message ? `: ${details.message}` : ''}`);
+        },
       });
       completed = true;
     } catch (error) { failure = error; report = error.report; log(error.message); }
@@ -144,7 +147,7 @@
   }
   (async () => {
     try {
-      log('D10 installer page revision 2026-10-18.3 · 460800 baud');
+      log('D10 installer page revision 2026-10-18.4 · 460800 baud · up to 3 backup and sector-write attempts');
       const bytes = Uint8Array.from(atob(D10Firmware.base64), c => c.charCodeAt(0));
       const meta = D10Firmware.manifest;
       if (bytes.length !== meta.bytes || await FirmwareFlash.digest(bytes) !== meta.sha256) throw new Error('Included firmware failed its integrity check. Reload the page before connecting.');

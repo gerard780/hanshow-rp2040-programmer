@@ -269,6 +269,26 @@ divider is 104, within the one-byte SWS register; the existing probe range is
 are unchanged. A lower rate is a troubleshooting option, not proof that the
 reported read instability has been resolved.
 
+Page revision `2026-10-18.4` sets `backupReadAttempts: 3` and
+`sectorWriteAttempts: 3` for D10. Both options accept integers 1–3 and default
+to 1 for other callers. Backup attempts never merge bytes or compare arbitrary
+nonconsecutive captures: each pair is read afresh and must be identical and
+nonblank. Between attempts the existing resynchronizer keeps the CPU paused;
+UID, protection and the original transport-fault baseline must still verify.
+
+Sector retries record the failure phase and whether mutation was attempted.
+They check the same paused tag, unlocked protection state (allowing transient
+WEL only) and two matching sector reads. Two reads matching the intended data
+complete that sector without an erase. Otherwise only a sector affected by our
+write attempt, or still matching its original pre-write contents, is eligible
+for erase/blank-check/reprogram/verify. Check failures stop retries. Cancellation
+and exhausted writes enter existing rollback; recovery itself is not placed in
+an automatic retry loop. `backupReadLimit`/`backupReadAttempts` and
+`sectorWriteLimit`/`sectorWriteAttempts` retain the complete attempt history in
+the report. Target checks, persisted backup, zero-last ordering, whole-flash
+verification and final protection restoration remain mandatory. Unit and
+Chromium tests use simulated devices; physical reliability is unverified.
+
 ## Temporary browser recovery page (2026-10-13.4)
 
 `support/template.html`, `support/config.js`, `support/firmware.js` and

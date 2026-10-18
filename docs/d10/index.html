@@ -37,7 +37,7 @@
   </section>
   <section aria-labelledby="install-heading">
     <h2 id="install-heading"><span class="step">3</span>Save a backup &amp; install</h2>
-    <p>Click below and choose where to save your backup. We’ll read the tag twice, save and check that backup, then install D10 and verify it.</p>
+    <p>Click below and choose where to save your backup. We’ll read the tag twice, save and check that backup, then install D10 and verify it. Temporary read and write failures get up to three attempts. Every backup attempt needs two fresh matching reads; writes are rechecked before retrying.</p>
     <p class="hint">This page uses a slower 460800-baud connection. Reading and installation can take several minutes. Keep the page open, USB connected and tag powered until it finishes. This replaces the tag’s current application.</p>
     <div class="actions"><button id="install" class="primary" disabled>Save backup &amp; install D10</button><button id="cancel" disabled>Stop safely</button></div>
     <p id="status" role="status" aria-live="polite">Start by connecting your programmer.</p>
@@ -55,7 +55,7 @@
     </div>
   </section>
   <details><summary>Activity and technical details</summary>
-    <p class="hint">D10 discovery · experimental · page revision 2026-10-18.3. Supported 437 waveform banks: 0ASSPQ0NX, 0BNSPQ0UK and 0BNSPQ069. Installation uses the existing v1.6 writer at 460800 baud with conservative writes. Files stay on your computer. Browser tests use simulated devices; physical installation through this page remains unverified.</p>
+    <p class="hint">D10 discovery · experimental · page revision 2026-10-18.4. Supported 437 waveform banks: 0ASSPQ0NX, 0BNSPQ0UK and 0BNSPQ069. Installation uses the existing v1.6 writer at 460800 baud, up to three backup-read attempts, and up to three checked attempts per application sector. Retries stop if tag identity, protection or repeatable readback cannot be verified. Files stay on your computer. Browser tests use simulated devices; physical installation through this page remains unverified.</p>
     <pre id="log" role="log"></pre>
   </details>
   <p class="footer"><a href="../tools/">Full read/write tools</a> · <a href="https://gist.github.com/gerard780/4c4f7510a67268b1721486249fa121b2">D10 firmware and notes</a></p>
@@ -674,22 +674,27 @@
     async writeSector(offset, data, before, recovery = false) {
       requireValue(offset % SECTOR === 0 && offset >= 0 && offset + SECTOR <= LIMIT && data.length === SECTOR && before.length === SECTOR,
         'Write outside application sector boundaries');
-      requireValue(equal(await this.readSector(offset), before), 'Live sector differs from saved pre-write contents');
-      await this.spi([6]); await this.spi([0x20, offset >> 16, offset >> 8 & 255, offset & 255]); await this.ready(recovery);
-      requireValue((await this.readSector(offset)).every(byte => byte === 255), 'Sector did not become erased; programming refused');
-      const chunk = recovery ? 64 : PAGE;
-      for (let index = 0; index < SECTOR; index += chunk) {
-        const page = data.subarray(index, index + chunk), address = offset + index;
-        if (page.every(byte => byte === 255)) continue;
-        await this.spi([6]); await this.spi([2, address >> 16, address >> 8 & 255, address & 255, ...page]); await this.ready(recovery);
-      }
-      const actual = await this.readSector(offset);
-      if (!equal(actual, data)) {
-        const first = data.findIndex((byte, i) => byte !== actual[i]);
-        const error = new Error(`Programmed sector readback mismatch at sector 0x${offset.toString(16)}, address 0x${(offset + first).toString(16)}`);
-        error.sectorDiagnostic = {offset, firstMismatchAddress: offset + first, expectedSha256: await digest(data), readbackSha256: await digest(actual)};
-        throw error;
-      }
+      let phase = 'prewrite', mutationAttempted = false;
+      try {
+        requireValue(equal(await this.readSector(offset), before), 'Live sector differs from saved pre-write contents');
+        phase = 'erase'; await this.spi([6]); mutationAttempted = true;
+        await this.spi([0x20, offset >> 16, offset >> 8 & 255, offset & 255]); await this.ready(recovery);
+        phase = 'blank_check';
+        requireValue((await this.readSector(offset)).every(byte => byte === 255), 'Sector did not become erased; programming refused');
+        phase = 'program'; const chunk = recovery ? 64 : PAGE;
+        for (let index = 0; index < SECTOR; index += chunk) {
+          const page = data.subarray(index, index + chunk), address = offset + index;
+          if (page.every(byte => byte === 255)) continue;
+          await this.spi([6]); await this.spi([2, address >> 16, address >> 8 & 255, address & 255, ...page]); await this.ready(recovery);
+        }
+        phase = 'verify'; const actual = await this.readSector(offset);
+        if (!equal(actual, data)) {
+          const first = data.findIndex((byte, i) => byte !== actual[i]);
+          const error = new Error(`Programmed sector readback mismatch at sector 0x${offset.toString(16)}, address 0x${(offset + first).toString(16)}`);
+          error.sectorDiagnostic = {offset, firstMismatchAddress: offset + first, expectedSha256: await digest(data), readbackSha256: await digest(actual)};
+          throw error;
+        }
+      } catch (error) { error.writeDiagnostic = {offset, phase, mutationAttempted}; throw error; }
     }
     async fullRead(phase, signal, progress) {
       const data = new Uint8Array(SIZE);
@@ -702,14 +707,18 @@
     }
   }
   async function installApplication(reader, plan, options = {}) {
-    const {signal, progress = () => {}, saveBackup, saveRecoveryBackup = true, apply = false, onEvent = () => {}} = options;
+    const {signal, progress = () => {}, saveBackup, saveRecoveryBackup = true, apply = false, onEvent = () => {}, backupReadAttempts = 1, sectorWriteAttempts = 1} = options;
+    requireValue(Number.isInteger(backupReadAttempts) && backupReadAttempts >= 1 && backupReadAttempts <= 3,
+      'Backup read attempts must be an integer from 1 to 3');
+    requireValue(Number.isInteger(sectorWriteAttempts) && sectorWriteAttempts >= 1 && sectorWriteAttempts <= 3,
+      'Sector write attempts must be an integer from 1 to 3');
     // Revalidate an owned copy before any hardware operation. A single binary
     // becomes a per-tag plan only after two complete matching live reads.
     const binary = plan instanceof Uint8Array ? await validateBinary(plan) :
       plan?.kind === 'single-bin' ? await validateBinary(plan.application) : null;
     plan = binary ? null : await validatePlan(plan.meta, plan.application, plan.expected, plan.recovery);
     const flash = new FlashSession(reader), touched = [];
-    const report = {webFlasherRevision: dump.revision, apply, baudRate: reader.baudRate, inputMode: binary ? 'single-bin' : 'prepared-plan', backupRequested: saveRecoveryBackup, backupSaved: false, verified: false, attemptedSectors: touched, writtenSectors: [], cpuResetVerified: false, events: []};
+    const report = {webFlasherRevision: dump.revision, apply, baudRate: reader.baudRate, inputMode: binary ? 'single-bin' : 'prepared-plan', backupRequested: saveRecoveryBackup, backupSaved: false, verified: false, attemptedSectors: touched, writtenSectors: [], cpuResetVerified: false, backupReadLimit: backupReadAttempts, backupReadAttempts: [], sectorWriteLimit: sectorWriteAttempts, sectorWriteAttempts: [], events: []};
     const event = (name, details = {}) => {
       report.events.push({event: name, ...details});
       // UI/logging failures must not interrupt preservation or recovery.
@@ -717,6 +726,48 @@
     };
     let before = null, uid, failure, trustedBefore = !(options.expectedBackupSha256 || options.expectedFlashUidSha256);
     let imageVerified = trustedBefore, protectionVerified = true;
+    async function writeWithRetry(offset, data, original) {
+      let current = original, mayHaveMutated = false;
+      for (let attempt = 1; attempt <= sectorWriteAttempts; attempt++) {
+        cancelled(signal);
+        const entry = {offset, attempt}; report.sectorWriteAttempts.push(entry);
+        let checkingRetry = attempt > 1;
+        try {
+          if (checkingRetry) {
+            event('sector_write_retry', {offset, attempt, message: `Write attempt ${attempt}/${sectorWriteAttempts}: checking the paused tag and two matching sector reads before continuing.`});
+            await reader.resynchronize(); cancelled(signal);
+            requireValue(equal(uid, await flash.spi([0x4b, 0, 0, 0, 0], 16)), 'Target changed before sector retry');
+            await flash.ready(true);
+            // WEL may remain set after an interrupted command; all other
+            // status bits must match the verified unlocked state, including WIP=0.
+            const status = await flash.status();
+            requireValue((status & ~2) === (flash.protection & ~0x407c), 'Protection changed before sector retry');
+            const first = await flash.readSector(offset); cancelled(signal);
+            const second = await flash.readSector(offset); cancelled(signal);
+            requireValue(equal(first, second), 'Sector retry reads differ; retry stopped');
+            await reader.verifyTransport();
+            entry.readbackSha256 = await digest(first);
+            if (equal(first, data)) {
+              entry.status = 'verified_existing';
+              event('sector_retry_already_verified', {offset, attempt, message: 'Two matching reads confirm the intended sector; no additional erase or program needed.'});
+              return;
+            }
+            requireValue(mayHaveMutated || equal(first, original), 'Untouched sector changed before retry; retry stopped');
+            current = first; checkingRetry = false;
+          }
+          await flash.writeSector(offset, data, current, !!options.conservative);
+          entry.status = 'verified'; return;
+        } catch (error) {
+          entry.status = 'failed'; entry.error = error.message;
+          if (error.writeDiagnostic) entry.writeDiagnostic = error.writeDiagnostic;
+          if (error.sectorDiagnostic) entry.sectorDiagnostic = error.sectorDiagnostic;
+          if (error.transportDiagnostic) entry.transportDiagnostic = error.transportDiagnostic;
+          mayHaveMutated ||= !!error.writeDiagnostic?.mutationAttempted;
+          event('sector_write_attempt_failed', {offset, attempt, message: error.message});
+          if (checkingRetry || signal?.aborted || error.name === 'AbortError' || attempt === sectorWriteAttempts) throw error;
+        }
+      }
+    }
     try {
       const bridge = await reader.bridge.status();
       requireValue(bridge.version === '1.6', 'Browser flashing requires the tested RP2040 v1.6 UF2');
@@ -734,23 +785,46 @@
       if (options.expectedProtection !== undefined) requireValue(protection === options.expectedProtection,
         'Protection changed after original-image recovery; application writes refused');
       Object.assign(report, identity, {jedecId: 'eb6013', flashUid: hex(uid), protectionOriginal: protection, bridgeVersion: bridge.version});
-      before = await flash.fullRead('Reading tag (pass 1)', signal, progress);
-      const second = await flash.fullRead('Reading tag (pass 2)', signal, progress);
-      const validation = await inspectBackups(before, second);
-      report.backupValidation = validation;
-      event('backup_read_hashes', {message: validation.reads.map((read, i) => `Read ${i + 1} SHA-256: ${read.sha256}${read.allZero ? ' (entirely 00)' : read.allFF ? ' (entirely FF)' : ''}`).join('; ')});
-      if (!validation.valid) {
-        const where = offset => `0x${offset.toString(16).padStart(6, '0')}`;
-        const byte = value => value.toString(16).padStart(2, '0');
-        let message;
-        if (validation.mismatchedBytes) {
-          const first = validation.firstDifferences[0];
-          message = `Fresh full backups differ: ${validation.mismatchedBytes} byte${validation.mismatchedBytes === 1 ? '' : 's'} across ${validation.differingSectors.length} sector${validation.differingSectors.length === 1 ? '' : 's'}; first mismatch at ${where(first.offset)} (read 1 ${byte(first.read1)}, read 2 ${byte(first.read2)}); writes refused`;
-          event('backup_read_differences', {message: 'First differences (read 1/read 2): ' + validation.firstDifferences.map(d => `${where(d.offset)} ${byte(d.read1)}/${byte(d.read2)}`).join(', ')});
-        } else {
-          message = `Both full backup reads are entirely ${validation.reads[0].allZero ? '00' : 'FF'}; no usable backup; writes refused`;
+      for (let attempt = 1; attempt <= backupReadAttempts; attempt++) {
+        cancelled(signal);
+        if (attempt > 1) {
+          event('backup_read_retry', {attempt, message: `Retrying backup reads (${attempt}/${backupReadAttempts}). Discarding the failed pair and checking the same paused tag.`});
+          // Drain stale framing without reopening serial, recalibrating, or
+          // resetting the tag. Do not refresh the transport-fault baseline.
+          await reader.resynchronize(); cancelled(signal);
+          requireValue(equal(uid, await flash.spi([0x4b, 0, 0, 0, 0], 16)), 'Target changed before backup retry; writes refused');
+          requireValue(await flash.status() === protection, 'Protection changed before backup retry; writes refused');
+          await reader.verifyTransport();
         }
-        throw new Error(message);
+        const entry = {attempt}; report.backupReadAttempts.push(entry);
+        report.backupValidation = null;
+        event('backup_read_attempt', {attempt, limit: backupReadAttempts, message: `Backup attempt ${attempt}/${backupReadAttempts}: two fresh full reads required.`});
+        let firstRead, readFailure;
+        try {
+          firstRead = await flash.fullRead('Reading tag (pass 1)', signal, progress);
+          const second = await flash.fullRead('Reading tag (pass 2)', signal, progress);
+          const validation = await inspectBackups(firstRead, second);
+          entry.validation = validation; report.backupValidation = validation;
+          event('backup_read_hashes', {attempt, message: validation.reads.map((read, i) => `Read ${i + 1} SHA-256: ${read.sha256}${read.allZero ? ' (entirely 00)' : read.allFF ? ' (entirely FF)' : ''}`).join('; ')});
+          if (!validation.valid) {
+            const where = offset => `0x${offset.toString(16).padStart(6, '0')}`;
+            const byte = value => value.toString(16).padStart(2, '0');
+            let message;
+            if (validation.mismatchedBytes) {
+              const first = validation.firstDifferences[0];
+              message = `Fresh full backups differ: ${validation.mismatchedBytes} byte${validation.mismatchedBytes === 1 ? '' : 's'} across ${validation.differingSectors.length} sector${validation.differingSectors.length === 1 ? '' : 's'}; first mismatch at ${where(first.offset)} (read 1 ${byte(first.read1)}, read 2 ${byte(first.read2)}); writes refused`;
+              event('backup_read_differences', {attempt, message: 'First differences (read 1/read 2): ' + validation.firstDifferences.map(d => `${where(d.offset)} ${byte(d.read1)}/${byte(d.read2)}`).join(', ')});
+            } else {
+              message = `Both full backup reads are entirely ${validation.reads[0].allZero ? '00' : 'FF'}; no usable backup; writes refused`;
+            }
+            throw new Error(message);
+          }
+        } catch (error) { readFailure = error; }
+        if (!readFailure) { before = firstRead; break; }
+        entry.error = readFailure.message;
+        if (readFailure.transportDiagnostic) entry.transportDiagnostic = readFailure.transportDiagnostic;
+        event('backup_read_attempt_failed', {attempt, message: `Backup attempt ${attempt}/${backupReadAttempts} rejected: ${readFailure.message}`});
+        if (signal?.aborted || readFailure.name === 'AbortError' || attempt === backupReadAttempts) throw readFailure;
       }
       if (options.expectedBackupSha256) requireValue(await digest(before) === options.expectedBackupSha256,
         'Tag contents changed after original-image recovery; application writes refused');
@@ -785,7 +859,7 @@
           requireValue(equal(await reader.read(0x602, 1), Uint8Array.of(5)), 'CPU no longer halted');
           touched.push(offset); // recovery includes a partial erase/program
           event('sector_attempted', {offset});
-          await flash.writeSector(offset, plan.expected.subarray(offset, offset + SECTOR), before.subarray(offset, offset + SECTOR), !!options.conservative);
+          await writeWithRetry(offset, plan.expected.subarray(offset, offset + SECTOR), before.subarray(offset, offset + SECTOR));
           report.writtenSectors.push(offset); event('sector_verified', {offset});
           progress({phase: 'Programming', done: (index + 1) * SECTOR, total: order.length * SECTOR});
         }
@@ -960,7 +1034,7 @@
   const supported = isSecureContext && !!navigator.usb && !!navigator.serial &&
     !!crypto.subtle && typeof window.showSaveFilePicker === 'function';
   let firmware = null, bridge = null, io = null, busy = false, controller = null, completed = false;
-  let reportURL = null, started = 0;
+  let reportURL = null, started = 0, backupAttempt = 1;
   function log(message) {
     $('log').textContent += `[${new Date().toLocaleTimeString()}] ${message}\n`;
     $('log').scrollTop = $('log').scrollHeight;
@@ -1021,7 +1095,7 @@
   function progress(update) {
     $('progress').max = update.total; $('progress').value = update.done;
     $('status').textContent = `${update.phase}: ${Math.round(100 * update.done / update.total)}%`;
-    $('detail').textContent = `${Math.round((performance.now() - started) / 1000)} seconds elapsed. Keep this page open and the tag powered.`;
+    $('detail').textContent = `${update.phase.startsWith('Reading tag') ? `Backup attempt ${backupAttempt}/3 · ` : ''}${Math.round((performance.now() - started) / 1000)} seconds elapsed. Keep this page open and the tag powered.`;
   }
   $('install').onclick = async () => {
     if (busy || !firmware || !bridge || !io || completed) return;
@@ -1036,14 +1110,14 @@
       if (error.name !== 'AbortError') $('error').textContent = error.message;
       busy = false; render(); return;
     }
-    controller = new AbortController(); started = performance.now(); render();
+    controller = new AbortController(); started = performance.now(); backupAttempt = 1; render();
     if (reportURL) { URL.revokeObjectURL(reportURL); reportURL = null; }
     $('result').hidden = true; $('report').removeAttribute('href'); $('after-install').hidden = true;
     $('progress').value = 0; $('status').textContent = 'Checking the tag…';
     let report, failure;
     try {
       report = await FirmwareFlash.installApplication(new RP2040Reader(io, bridge, log, BAUD), firmware, {
-        apply: true, saveRecoveryBackup: true, conservative: true, pulseReset: true, activationMs: 3000,
+        apply: true, saveRecoveryBackup: true, conservative: true, pulseReset: true, activationMs: 3000, backupReadAttempts: 3, sectorWriteAttempts: 3,
         signal: controller.signal, progress,
         saveBackup: async bytes => {
           // Called after matching full reads and before any unlock/erase/program.
@@ -1058,7 +1132,10 @@
           log(`Backup saved and reread: ${handle.name}; SHA-256 ${digest}.`);
           return digest;
         },
-        onEvent: (name, details) => log(`${name.replaceAll('_', ' ')}${details.offset === undefined ? '' : ` at 0x${details.offset.toString(16)}`}${details.message ? `: ${details.message}` : ''}`),
+        onEvent: (name, details) => {
+          if (name === 'backup_read_attempt') backupAttempt = details.attempt;
+          log(`${name.replaceAll('_', ' ')}${details.offset === undefined ? '' : ` at 0x${details.offset.toString(16)}`}${details.message ? `: ${details.message}` : ''}`);
+        },
       });
       completed = true;
     } catch (error) { failure = error; report = error.report; log(error.message); }
@@ -1098,7 +1175,7 @@
   }
   (async () => {
     try {
-      log('D10 installer page revision 2026-10-18.3 · 460800 baud');
+      log('D10 installer page revision 2026-10-18.4 · 460800 baud · up to 3 backup and sector-write attempts');
       const bytes = Uint8Array.from(atob(D10Firmware.base64), c => c.charCodeAt(0));
       const meta = D10Firmware.manifest;
       if (bytes.length !== meta.bytes || await FirmwareFlash.digest(bytes) !== meta.sha256) throw new Error('Included firmware failed its integrity check. Reload the page before connecting.');

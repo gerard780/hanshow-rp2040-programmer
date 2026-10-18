@@ -13,7 +13,7 @@
     "tools/speed/write_validation.py": "bcd4faba70930438e3b977354d1a4fd02fc825667feb28883c86b23dd1ee6139",
     "flash_application.py": "232e6e986886f12f19bbad159700e5680f6107f7232c67bce759cc9b857d4226",
     "tools/speed/application_install.py": "77513fdf618cd443df5543856782b69e42aea80c065535714232e55467fafa41",
-    "firmware-dumper/flash.js": "7b4b78d76b007b573e025812d55b14e0191cbdb9c61b1d977b6981da66f750e0",
+    "firmware-dumper/flash.js": "9be0bb5704e3bc3020ff17fa5c17f558f3a10633024fcb56c19ce591d4a4bacb",
     "firmware-dumper/app.js": "30e5298b011736e4f9bd5ca3fb10bb0295885b7449e099ff52e9ab266951ab30",
     "firmware-dumper/build_standalone.py": "96cd8c796f4a17f2fad5182cf459ba80c89022809fa1cc0d5065730239371403",
     "firmware-dumper/discovery.js": "9dbd971507227b59457c7bcb33625930109f7b0be84c3140ed191c9e06f9081c",
@@ -28,17 +28,19 @@
     "firmware-dumper/support/config.js": "75223207b8aede0ee12e1d6ac2ddec1fd99cbf00c3f61267685009fe162225f8",
     "firmware-dumper/support/firmware.js": "c4f932a63fca0a22d29cf1c84d0de1f31a16ae67766890d7f2890b2def65b407",
     "firmware-dumper/support/app.js": "47bb405a89640c3c466dfa06a362f6db000c9f7671f4d497d0be33176542701a",
-    "firmware-dumper/d10/app.js": "6a5bce21170e1e7fba9de388ef359fd404af875f30e13d1786d7c432ea1fb78a",
+    "firmware-dumper/d10/app.js": "fb5b8b9e34198acc6dd27000708922361787e7e8b697d4fac14248703685c7bc",
     "firmware-dumper/d10/controller.html": "7bbf8e31bc9993b35443e2f0dfafefd98e57b1b6e3b1109e24780c34263ec31a",
     "firmware-dumper/d10/expected-screen.png": "e50a111bac1f468877aaf436faf44d8cc23405e46f5426e2b60e09126ab84122",
     "firmware-dumper/d10/firmware.js": "12b325c42c58041b02ca2e9fe159008bae6d4f9e6e944e28619357074b5f6a75",
     "firmware-dumper/d10/target.js": "ed4bf93d114a5f8816866b13a15130c984c2dc27d0bf9a40254441018f5a7995",
-    "firmware-dumper/d10/template.html": "60dc2eb1069cff069962bfdf2c04ee4ea29eb6b3a4066ae89118bfd3b425e46d",
+    "firmware-dumper/d10/template.html": "740cdec4b820cd44ce9db9fd7c52b081afdb1c6f80888290c292c5273aa61925",
     "firmware-dumper/tests/d10.test.cjs": "676c84f31c9d1ee4067ec5bd85d8af1ae906ebed902fa61aa67ee4475319e68a",
-    "firmware-dumper/tests/d10-smoke.cjs": "c100af9b121ef85ab5b8b85919a6a7a7d6800a369cc7c8db96d48e02bf6498b0",
+    "firmware-dumper/tests/d10-smoke.cjs": "88202fc1a3816eac213e7cc99c1decbdbd44d315c364c1e64604ec334439b51e",
     "firmware-dumper/tests/backup-validation.test.cjs": "e1469454d1fe691258fb048d30b2f11328f30173d3274fc3d5be3a3914ffcb4a",
     "firmware-dumper/tests/single-bin.test.cjs": "a4be84c7423c596b056365f982a54168e7c7348c2a58d39475f1b796cb0f57f4",
-    "firmware-dumper/tests/readback.test.cjs": "416d3076458014e1e96275bcae9504e833cb5177687cd71dac438764173e5c72"
+    "firmware-dumper/tests/readback.test.cjs": "416d3076458014e1e96275bcae9504e833cb5177687cd71dac438764173e5c72",
+    "firmware-dumper/tests/backup-retry.test.cjs": "4553e2f6ae17f53fd1efb68eb8e10aebdc4976366d57f5957af9a21be301f3f7",
+    "firmware-dumper/tests/write-retry.test.cjs": "c77545a7836a6af591b7490d427430d8bf8d9374e72b69f1ff526c69c5026d7e"
   },
   "upstream_readers": [
     {
@@ -76,7 +78,7 @@
     "gist": "https://gist.github.com/gerard780/92feab930abb5c7cd4f30b419c8dbc4d",
     "gist_revision": "e2c08f926a6be2b5d51863aea84e235d94b46cfe"
   },
-  "d10_page_revision": "2026-10-18.3",
+  "d10_page_revision": "2026-10-18.4",
   "d10_application": {
     "name": "EXPERIMENTAL_ATC_Nebular_437_D10_discovery.bin",
     "sha256": "cea41f2aad7b9b0f6a4d3a89be401764a6abc5d50ebb167c628625f949ff1927",
@@ -84,5 +86,7 @@
     "gist": "https://gist.github.com/gerard780/4c4f7510a67268b1721486249fa121b2",
     "gist_revision": "28bdac5c129b468248a56f27098a05a29a19989a"
   },
-  "d10_baud_rate": 460800
+  "d10_baud_rate": 460800,
+  "d10_backup_read_attempts": 3,
+  "d10_sector_write_attempts": 3
 }

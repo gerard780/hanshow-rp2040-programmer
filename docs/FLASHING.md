@@ -11,6 +11,14 @@ backup, then writes and verifies the application. Keep the tag powered and the
 page open until completion. The connection uses 460800 baud (half of 921600)
 with conservative writes. No programmer update is needed beyond v1.6.
 
+Backup reads and application-sector writes allow up to three attempts each
+(the first attempt plus two retries). Every backup retry starts with two fresh
+full reads. A write retry first verifies the paused tag and two matching reads
+of the affected sector; already correct contents need no additional erase.
+Unreliable retry checks or exhausted attempts stop forward writing and trigger
+the existing recovery path. Stop safely cancels retries and allows recovery
+to finish. Retries can increase the total time.
+
 The included firmware is pinned to the [D10 gist](https://gist.github.com/gerard780/4c4f7510a67268b1721486249fa121b2),
 SHA-256 `cea41f2aad7b9b0f6a4d3a89be401764a6abc5d50ebb167c628625f949ff1927`.
 The page links to the matching D10 display controller after installation.

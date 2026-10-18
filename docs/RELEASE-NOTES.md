@@ -1,3 +1,20 @@
+# D10 read and write retries — page 2026-10-18.4
+
+The D10 page allows three backup attempts total. Failed or partial pairs are
+discarded; each attempt requires two fresh matching nonblank full reads. Before
+retrying, the connection is resynchronized without reopening serial or resetting
+the tag, and CPU halt, flash UID, protection and transport faults are checked.
+
+Application writes allow three checked attempts per sector. After a failed
+attempt, two matching sector reads must verify the current contents. Intended
+data already present is accepted without another erase; an interrupted sector
+can otherwise be erased, blank-checked, programmed and verified again. Retry
+checks failing, cancellation, or exhaustion stop forward writes and enter the
+existing original-image recovery path. Full-flash verification, sector-zero-last
+ordering and protection restoration remain required. Every attempt is logged.
+Other installer callers retain one attempt by default. Timing stays at 460800
+baud, and D10's firmware bytes are unchanged. Validation uses simulated devices.
+
 # Slower D10 connection — page 2026-10-18.3
 
 The guided D10 page now reads, programs and recovers at 460800 baud, half its
