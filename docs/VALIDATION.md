@@ -1,5 +1,22 @@
 # Programmer validation
 
+## Guided D10 page — 18 October 2026
+
+The D10 target/pinning tests and existing browser-backend test files pass.
+The guided-page Chromium tests use fake USB/serial/flash devices and synthetic
+factory-match metadata, while installing the actual pinned D10 application.
+They verify a fresh saved/reread 512 KiB backup precedes erase, application
+sector zero is last, the full expected image and protection verify, and all
+bytes at/above `0x20000` are preserved. The backend retains its existing
+journal initialization/preservation behavior.
+
+Additional cases reject wrong product records, altered waveform packages,
+failed backup writes/readback, wrong serial interfaces, unsupported browsers,
+older programmers and damaged firmware. Cancellation after writes restores the
+previous image. Unverified restoration/protection leaves the CPU halted and
+disables normal retries. Mobile layout and self-contained resource loading
+are checked. There was no bench access or physical D10/browser validation.
+
 ## Existing physical transport checks
 
 The earlier bench implementation completed two matching full 512 KiB native

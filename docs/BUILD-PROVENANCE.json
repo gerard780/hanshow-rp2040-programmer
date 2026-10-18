@@ -15,19 +15,27 @@
     "tools/speed/application_install.py": "77513fdf618cd443df5543856782b69e42aea80c065535714232e55467fafa41",
     "firmware-dumper/flash.js": "7d3867e6191469437460dc8a68d791414af4dc305fcb16383f217180eb80d134",
     "firmware-dumper/app.js": "30e5298b011736e4f9bd5ca3fb10bb0295885b7449e099ff52e9ab266951ab30",
-    "firmware-dumper/build_standalone.py": "441fa0d6f3aa5feb01d38adecde4c41c574d46006ada10e77d02761dff2b0e12",
+    "firmware-dumper/build_standalone.py": "96cd8c796f4a17f2fad5182cf459ba80c89022809fa1cc0d5065730239371403",
     "firmware-dumper/discovery.js": "9dbd971507227b59457c7bcb33625930109f7b0be84c3140ed191c9e06f9081c",
     "firmware-dumper/discovery-ui.js": "91842796ee349abec9172d26915cab8e56250b3d5df78521d5116ed377b56ca3",
     "firmware-dumper/dumper-app.js": "6a5d72e4255baa077774a6943802bd85ea17bc4a99412b14abf03da4c512ca98",
     "firmware-dumper/dumper.template.html": "667081c492e426a8c0b166767f7f2a97c29a9877d26f7d92aceaa4e95bd3f9ba",
-    "firmware-dumper/index.template.html": "f41c916c6d745bc515a5afb34fcaf1cb2baea98ead3c44116f07dd5b61fdc342",
+    "firmware-dumper/index.template.html": "36bd42ac7db5199bfb0e677e22fac1f734afd3a6d50ff524f90ee9b4e9ccfec9",
     "recover_application.py": "609e18ac601171e4f8a1c706553e76fe692a6284cb6213d58a1c16208545112f",
     "tools/speed/application_recover.py": "9ba63c34f7f0945998d0fd5c3deec4146810ec4b2d77129ede674b246c6cad2e",
     "firmware-dumper/recovery.js": "4d63fca07d4360b9626f7030ff8aa925856b0cae4cac8456a329d60b28973560",
     "firmware-dumper/support/template.html": "a7b3bb6d019a6f91de004588cdf1958e113bb09dc43998daf15c7b0127c8b317",
     "firmware-dumper/support/config.js": "75223207b8aede0ee12e1d6ac2ddec1fd99cbf00c3f61267685009fe162225f8",
     "firmware-dumper/support/firmware.js": "c4f932a63fca0a22d29cf1c84d0de1f31a16ae67766890d7f2890b2def65b407",
-    "firmware-dumper/support/app.js": "47bb405a89640c3c466dfa06a362f6db000c9f7671f4d497d0be33176542701a"
+    "firmware-dumper/support/app.js": "47bb405a89640c3c466dfa06a362f6db000c9f7671f4d497d0be33176542701a",
+    "firmware-dumper/d10/app.js": "68e566d07bb5c40c13d9a46eace07cb73cd18f25bf6044473e762b89f7785d67",
+    "firmware-dumper/d10/controller.html": "7bbf8e31bc9993b35443e2f0dfafefd98e57b1b6e3b1109e24780c34263ec31a",
+    "firmware-dumper/d10/expected-screen.png": "e50a111bac1f468877aaf436faf44d8cc23405e46f5426e2b60e09126ab84122",
+    "firmware-dumper/d10/firmware.js": "12b325c42c58041b02ca2e9fe159008bae6d4f9e6e944e28619357074b5f6a75",
+    "firmware-dumper/d10/target.js": "ed4bf93d114a5f8816866b13a15130c984c2dc27d0bf9a40254441018f5a7995",
+    "firmware-dumper/d10/template.html": "e080d83dd9f915871ae1cb84450ec0f0ede2180a384742d5de7e6a4e30ad945f",
+    "firmware-dumper/tests/d10.test.cjs": "676c84f31c9d1ee4067ec5bd85d8af1ae906ebed902fa61aa67ee4475319e68a",
+    "firmware-dumper/tests/d10-smoke.cjs": "928a5c1a840beaabd3ebcb551bafd2013812e8b5d790883a1a5b1122f3b21ac8"
   },
   "upstream_readers": [
     {
@@ -54,7 +62,9 @@
   "web_pages": {
     "dumper_only": "docs/index.html",
     "read_write_discovery": "docs/tools/index.html",
-    "temporary_support": "docs/support/recovery-437-6f3d8a/index.html"
+    "temporary_support": "docs/support/recovery-437-6f3d8a/index.html",
+    "simple_d10": "docs/d10/index.html",
+    "d10_controller": "docs/d10/controller.html"
   },
   "support_application": {
     "name": "EXPERIMENTAL_ATC_Nebular_437_D9_discovery.bin",
@@ -62,5 +72,13 @@
     "bytes": 124964,
     "gist": "https://gist.github.com/gerard780/92feab930abb5c7cd4f30b419c8dbc4d",
     "gist_revision": "e2c08f926a6be2b5d51863aea84e235d94b46cfe"
+  },
+  "d10_page_revision": "2026-10-18",
+  "d10_application": {
+    "name": "EXPERIMENTAL_ATC_Nebular_437_D10_discovery.bin",
+    "sha256": "cea41f2aad7b9b0f6a4d3a89be401764a6abc5d50ebb167c628625f949ff1927",
+    "bytes": 125012,
+    "gist": "https://gist.github.com/gerard780/4c4f7510a67268b1721486249fa121b2",
+    "gist_revision": "28bdac5c129b468248a56f27098a05a29a19989a"
   }
 }

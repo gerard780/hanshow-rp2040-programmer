@@ -226,6 +226,33 @@ data, and requires full-image equality and restored protection before CPU reset.
 Software simulation is the validation for these changes; successful physical
 browser installation/recovery remains unverified. The RP2040 v1.6 UF2 is unchanged.
 
+## Simple D10 installer (2026-10-18)
+
+The [guided D10 page](https://gerard780.github.io/hanshow-rp2040-programmer/d10/)
+is built from `d10/template.html`, `d10/firmware.js`, `d10/target.js` and
+`d10/app.js`, using the existing `sws.js` and `flash.js` backend. It includes
+the exact 125,012-byte D10 discovery application, its manifest and a preview
+rendered from D10's `pattern.c`. `d10/controller.html` is the matching unmodified
+controller. Firmware provenance and SHA-256 are embedded in `d10/firmware.js`.
+
+There is no application picker, old-backup picker, speed selector or optional
+backup mode. A supported desktop browser must provide USB, serial and the
+file-save API. A fresh full backup must be committed and reread before writing.
+The target guard matches D10's offline planner: exact captured product record
+and full native waveform-package SHA-256. Unknown or altered factory data is
+rejected before unlock. Conservative writes use 921600 baud; existing journal
+preservation, sector-zero-last ordering, full-image verification and recovery
+come from the existing backend. Unverified recovery disables reconnect/install
+controls so a normal retry cannot reset the held tag.
+
+Build with `python3 firmware-dumper/build_standalone.py`; `--check` verifies all
+generated pages and the controller copy. Run `node --test
+firmware-dumper/tests/d10.test.cjs` and, with the repo served on localhost:8778,
+`node firmware-dumper/tests/d10-smoke.cjs /path/to/playwright`. Set
+`CHROMIUM_PATH` if needed. Tests use synthetic target metadata and simulated
+devices; they install the actual pinned binary without executing tag code.
+Physical D10/browser operation remains unverified.
+
 ## Temporary browser recovery page (2026-10-13.4)
 
 `support/template.html`, `support/config.js`, `support/firmware.js` and

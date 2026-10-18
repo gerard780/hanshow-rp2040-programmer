@@ -4,6 +4,12 @@ Source, wiring and **public v1.6 programmer firmware (experimental)** for our RP
 Telink SWS bridge. It exposes a USB SWS programmer and a separate USB tag UART,
 with native PIO reply capture and up to 4 KiB per block-read request.
 
+For a supported Nebular 437, use the **[simple D10 installer](https://gerard780.github.io/hanshow-rp2040-programmer/d10/)**.
+D10 discovery firmware is included: connect the RP2040, choose its SWS port,
+then save a fresh backup and install. There are no firmware files or speed
+settings to choose. The page verifies the saved backup and supported factory
+product/waveforms before writing. The existing v1.6 programmer is sufficient.
+
 Use it to capture factory firmware **before changing a tag**, preserve a
 recovery backup, and provide evidence for additional Hanshow display support.
 The new reader attempts legacy **825x-style and 826x-style SWS/SPI** backends,

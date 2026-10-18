@@ -1,5 +1,28 @@
 # Application flashing on 026255 / EB6013
 
+## Simple D10 installer for Nebular 437
+
+Open the **[D10 installer](https://gerard780.github.io/hanshow-rp2040-programmer/d10/)**
+in desktop Chrome or Edge. D10 is included. Connect the v1.6 RP2040, choose its
+SWS port, then click **Save backup & install D10** and choose a new backup file.
+The page reads the tag twice, matches the captured 437 product record and one
+of the three known complete native waveform banks, saves and rereads the full
+backup, then writes and verifies the application. Keep the tag powered and the
+page open until completion. Connection speed and conservative writes are fixed.
+
+The included firmware is pinned to the [D10 gist](https://gist.github.com/gerard780/4c4f7510a67268b1721486249fa121b2),
+SHA-256 `cea41f2aad7b9b0f6a4d3a89be401764a6abc5d50ebb167c628625f949ff1927`.
+The page links to the matching D10 display controller after installation.
+Existing valid discovery journals are preserved. The tag tests P0–P3 itself;
+successful flashing does not establish visible display success.
+
+This normal installer does not use a personal recovery link or require an old
+backup upload. For an interrupted installation with unverified recovery, follow
+the [recovery instructions](RECOVERY.md) first. Physical use of the new guided
+page remains unverified; browser tests use simulated devices.
+
+## General application installer
+
 Use the [read/write/discovery tool](https://gerard780.github.io/hanshow-rp2040-programmer/tools/)
 with a **single application `.bin`**, or `flash_application.py` with the
 application package's prepared same-tag plan. Both write paths remain

@@ -14,7 +14,9 @@ BUILDS = (("index.template.html", ("sws.js", "flash.js", "discovery.js", "discov
           ("dumper.template.html", ("sws.js", "dumper-app.js"),
            (HERE / "read-only.html", ROOT / "docs/index.html")),
           ("support/template.html", ("support/config.js", "support/firmware.js", "sws.js", "flash.js", "recovery.js", "support/app.js"),
-           (ROOT / "docs/support/recovery-437-6f3d8a/index.html",)))
+           (ROOT / "docs/support/recovery-437-6f3d8a/index.html",)),
+          ("d10/template.html", ("sws.js", "flash.js", "d10/firmware.js", "d10/target.js", "d10/app.js"),
+           (ROOT / "docs/d10/index.html",)))
 
 
 def bundle(template="index.template.html", sources=("sws.js", "flash.js", "discovery.js", "discovery-ui.js", "app.js")):
@@ -25,6 +27,9 @@ def bundle(template="index.template.html", sources=("sws.js", "flash.js", "disco
     html = (HERE / template).read_text()
     html = html.replace("@@PROGRAMMER_UF2@@", "data:application/octet-stream;base64," + base64.b64encode(uf2).decode("ascii"))
     html = html.replace("@@PROGRAMMER_VERSION@@", manifest["version"])
+    if "@@D10_PREVIEW@@" in html:
+        preview = (HERE / "d10/expected-screen.png").read_bytes()
+        html = html.replace("@@D10_PREVIEW@@", "data:image/png;base64," + base64.b64encode(preview).decode("ascii"))
     for name in sources:
         marker = f'<script src="{name}"></script>'
         if html.count(marker) != 1:
@@ -60,6 +65,14 @@ def main():
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(content)
         print(f"{'Verified' if args.check else 'Built'} {template}: {len(content)} bytes; browser resources included")
+    source = HERE / "d10/controller.html"
+    output = ROOT / "docs/d10/controller.html"
+    if args.check:
+        if not output.exists() or output.read_bytes() != source.read_bytes():
+            raise SystemExit("Stale D10 controller; run the builder")
+    else:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(source.read_bytes())
 
 
 

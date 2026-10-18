@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>437 Discovery D10 Controller</title>
+<style>
+:root{color-scheme:light;--ink:#172d35;--muted:#53656d;--line:#d5dfe0;--accent:#087b6d}*{box-sizing:border-box}body{margin:0;background:#f3f6f4;color:var(--ink);font:16px/1.5 system-ui,sans-serif}main{max-width:920px;margin:30px auto;padding:0 20px}h1{font-size:30px;line-height:1.2;margin:4px 0 12px}h2{font-size:20px;margin:0 0 12px}p{margin:8px 0 16px}.eyebrow{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);font-weight:700}.card{padding:22px;background:white;border:1px solid var(--line);border-radius:14px;margin:16px 0}.muted,small{color:var(--muted)}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}button,select,input[type=number]{font:inherit;padding:9px 13px;border:1px solid #9fbbb6;border-radius:7px;background:white;color:var(--ink)}button{cursor:pointer}button.primary{background:var(--accent);color:white;border-color:var(--accent)}button:disabled{opacity:.45;cursor:default}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #efb843;outline-offset:2px}.status{padding:12px 16px;background:#edf6f2;border-radius:8px;font-weight:650}#error{color:#9b3030;min-height:24px}dl{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:16px;margin:18px 0 0}dt{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}dd{margin:3px 0;font-weight:650;overflow-wrap:anywhere}label{display:block}label.inline{display:flex;gap:9px;align-items:flex-start;margin:14px 0}input[type=checkbox]{margin-top:6px}table{border-collapse:collapse;width:100%;margin:14px 0}th,td{text-align:left;border-bottom:1px solid var(--line);padding:8px}th{font-size:13px}pre{white-space:pre-wrap;font:12px/1.5 ui-monospace,monospace;max-height:240px;overflow:auto;background:#f3f6f4;padding:12px;border-radius:7px}#attemptInput{width:145px}.note{border-left:3px solid #d69c2b;padding-left:12px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}.two>.card{margin:0}@media(max-width:640px){main{padding:0 14px;margin:20px auto}.card{padding:17px}dl{grid-template-columns:repeat(2,minmax(110px,1fr))}.two{grid-template-columns:1fr}h1{font-size:26px}}
+</style></head><body><main>
+<div class="eyebrow">Experimental firmware D10 · 437 family</div><h1>Find the profile your display can draw</h1>
+<p class="muted">Connect to a tag running 437 Discovery D10. Watch the physical display and use the profile and attempt numbers printed on the image.</p>
+<div class="card"><div class="row"><button id="connect" class="primary">Connect to tag</button><button id="disconnect" disabled>Disconnect</button><button id="export">Export session JSON</button><span id="connection" class="muted">Disconnected</span></div><p id="error" role="alert"></p><div id="summary" class="status" aria-live="polite">Waiting for a tag.</div>
+<dl><div><dt>Current profile</dt><dd id="profile">—</dd></div><div><dt>Attempt</dt><dd id="attempt">—</dd></div><div><dt>Waveform bank</dt><dd id="bank">—</dd></div><div><dt>Temperature</dt><dd id="temperature">—</dd></div><div><dt>Progression</dt><dd id="mode">—</dd></div><div><dt>Next / wait</dt><dd id="wait">—</dd></div><div><dt>Confirmation</dt><dd id="confirmation">—</dd></div><div><dt>Stage / panel / band</dt><dd id="details">—</dd></div><div><dt>Flash journal</dt><dd id="journal">—</dd></div></dl></div>
+<div class="two"><section class="card"><h2>1. Watch the trials</h2><p>Auto tries profiles 0–3 once. Each trial has a 60-second deadline covering both refresh passes, followed by 5 seconds to inspect the display before the next trial. Pause stops progression after the active trial finishes or times out and powers down safely.</p><div class="row"><button id="pause" data-command="1" disabled>Pause</button><button id="auto" data-command="2" disabled>Auto / resume</button><button id="next" data-command="3" disabled>Next</button><button id="repeat" data-command="4" disabled>Repeat</button></div><p class="note"><small>A retained image can belong to an earlier attempt. Match the number on the screen, even when the controller has advanced. Wait for the panel to settle before judging it.</small></p></section>
+<section class="card"><h2>2. Try a promising profile again</h2><label for="profileSelect">Profile printed on the physical image</label><div class="row"><select id="profileSelect"><option value="0">0 · Baseline ATC SPI</option><option value="1">1 · Mode 0, 1 µs half-period</option><option value="2">2 · Mode 0, 2 µs half-period</option><option value="3">3 · Mode 0, 4 µs half-period</option></select><button id="select" disabled>Select &amp; test</button></div><p><small>Select starts confirmation image A; after you confirm A, the tag draws a different image B for a second confirmation. All candidates retain the detected factory waveform bank, voltages, GPIO mapping and byte-level CS framing.</small></p></section></div>
+<section class="card"><h2>3. Confirm the exact image you see</h2><p>After a selected profile finishes its test, inspect all corners, text and white, black, red and yellow patches. Enter the <strong>attempt number printed on the physical display</strong>. Confirmation requires a fresh observation for each test image.</p><label for="attemptInput">Visible attempt number</label><input id="attemptInput" type="number" min="1" max="4294967295" step="1" placeholder="From the screen" inputmode="numeric"><label class="inline"><input id="observed" type="checkbox"><span>I see this exact attempt, its profile matches the selected profile, and the complete test image looks correct.</span></label><button id="confirm" class="primary" disabled>Confirm visible attempt</button><p id="confirmHelp" class="muted">Select a promising profile, then wait for its test to finish.</p></section>
+<details class="card"><summary>Profiles and session details</summary><table><thead><tr><th>ID</th><th>SPI write timing</th></tr></thead><tbody><tr><td>0</td><td>Existing ATC software SPI</td></tr><tr><td>1</td><td>Mode 0, 1 µs minimum half-period</td></tr><tr><td>2</td><td>Mode 0, 2 µs minimum half-period</td></tr><tr><td>3</td><td>Mode 0, 4 µs minimum half-period</td></tr></tbody></table><p><small>Use Chrome or Edge with Web Bluetooth on a supported computer. The page needs a secure context; opening the local file works in supporting browsers, or serve this folder at localhost. Linux Bluetooth support can depend on browser settings. Connection loss does not pause an automatic sequence: reconnect and read the status. D10 records trial events in its flash journal across restarts while space remains. The journal status shows whether new records can be saved; it does not confirm a visible image. This controller sends only discovery commands. Export session JSON saves this browser’s BLE messages; the persistent flash journal is a separate record.</small></p><pre id="log" aria-label="Session events">No events yet.</pre></details>
+</main>
+<script id="controller-script">
+'use strict';
+(() => {
+const UUID='00001337-0000-1000-8000-00805f9b34fb';
+const OP={status:0,pause:1,auto:2,next:3,repeat:4,select:5,confirm:6};
+const BANKS=['0ASSPQ0NX','0BNSPQ0UK','0BNSPQ069'];
+const STAGES=['Trial sequence','Image A queued','Drawing image A','Inspect image A','Image B queued','Drawing image B','Inspect image B','Confirmed','Image A failed','Image B failed'];
+const RESULTS=['Accepted','Unknown command','Invalid argument','Refresh still in progress; wait for it to finish','Operation not valid in the current stage or attempt','All four automatic profiles have been tried','Invalid command length or operation','Unrecognized factory waveform bank','Stock command blocked during discovery'];
+const hex=bytes=>Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+function encodeRequest(op,arg=0){
+ if(!Number.isInteger(op)||op<0||op>6)throw new Error('Unknown discovery operation.');
+ if(!Number.isInteger(arg)||arg<0||arg>0xffffffff)throw new Error('Argument must be an unsigned 32-bit integer.');
+ if(op===OP.select&&arg>3)throw new Error('Profile must be 0–3.');
+ if(op===OP.confirm&&arg===0)throw new Error('Enter the attempt number printed on the display.');
+ const bytes=new Uint8Array(7);bytes[0]=0x43;bytes[1]=0x70;bytes[2]=op;
+ new DataView(bytes.buffer).setUint32(3,arg,true);return bytes;
+}
+function decodeStatus(value){
+ const bytes=value instanceof DataView?new Uint8Array(value.buffer,value.byteOffset,value.byteLength):new Uint8Array(value);
+ if(bytes.length!==20||bytes[0]!==0x43||bytes[1]!==0xf0)throw new Error('Unexpected notification frame.');
+ if(bytes[2]!==2)throw new Error('This D10 controller requires protocol v2; received version '+bytes[2]+'. Use the controller supplied with that firmware.');
+ const d=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),flags=bytes[4];
+ return {version:bytes[2],result:bytes[3],flags,bank:bytes[5],profile:bytes[6],stage:bytes[7],panelState:bytes[8],temperature:d.getInt8(9),band:bytes[10],selectedProfile:bytes[11],attempt:d.getUint32(12,true),nextProfile:bytes[16],pattern:bytes[17],waitSeconds:d.getUint16(18,true),running:!!(flags&1),auto:!!(flags&2),paused:!!(flags&4),lastSuccess:!!(flags&8),confirmed:!!(flags&16),bankMatched:!!(flags&32),fixedBuild:!!(flags&64),journalHealthy:!!(flags&128)};
+}
+function confirmationError(status,input,observed){
+ if(!status||!status.bankMatched)return 'A recognized waveform bank is required.';
+ if(status.fixedBuild)return 'This build uses a fixed profile. Use Repeat to redraw its test image.';
+ if(status.running)return 'Wait until the current refresh has finished.';
+ if(status.confirmed)return 'The firmware reports this profile confirmed.';
+ if(status.stage!==3&&status.stage!==6)return 'Select a profile and wait for confirmation image A or B to finish.';
+ if(!status.lastSuccess)return 'The tag must report a completed attempt before confirmation.';
+ if(status.selectedProfile>3||status.selectedProfile!==status.profile)return 'Select a profile and inspect its new test image first.';
+ const n=Number(input);
+ if(!String(input).trim()||!Number.isInteger(n)||n<1||n>0xffffffff)return 'Enter the attempt number printed on the physical display.';
+ if(n!==status.attempt)return 'That is an older or different attempt. Select its profile to draw a fresh test.';
+ if(!observed)return 'Inspect the entire image, then check the observation box.';
+ return '';
+}
+class DiscoveryTransport {
+ constructor(onEvent=()=>{},timeoutMs=12000){this.onEvent=onEvent;this.timeoutMs=timeoutMs;this.events=[];this.session=0;this.depth=0;this.queue=Promise.resolve();this.pending=null;this.characteristic=null;this.device=null;this.status=null;this.deviceInfo=null;}
+ record(kind,data={}){const event={time:new Date().toISOString(),kind,...data};this.events.push(event);this.onEvent(event);return event;}
+ get connected(){return !!this.characteristic;}
+ async connect(bluetooth){
+  if(!bluetooth)throw new Error('Web Bluetooth is unavailable. Use Chrome or Edge with Bluetooth enabled in a secure context.');
+  if(this.connected)this.disconnect();
+  const device=await bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[UUID]});
+  const server=await device.gatt.connect();
+  try{const service=await server.getPrimaryService(UUID),characteristic=await service.getCharacteristic(UUID);
+   await characteristic.startNotifications();this.attach(characteristic,device);
+  }catch(error){if(device.gatt.connected)device.gatt.disconnect();throw error;}
+ }
+ attach(characteristic,device=null){
+  this.disconnect(false);this.characteristic=characteristic;this.device=device;this.status=null;
+  this.deviceInfo=device?{name:device.name||'',id:device.id||''}:null;
+  this.receiveBound=event=>this.receive(event.target.value);
+  this.disconnectBound=()=>this.disconnect(false);
+  characteristic.addEventListener('characteristicvaluechanged',this.receiveBound);
+  if(device)device.addEventListener('gattserverdisconnected',this.disconnectBound);
+  this.record('connected',{device:this.deviceInfo});
+ }
+ disconnect(closeGatt=true){
+  const characteristic=this.characteristic,device=this.device;
+  this.session++;
+  if(characteristic&&this.receiveBound)characteristic.removeEventListener('characteristicvaluechanged',this.receiveBound);
+  if(device&&this.disconnectBound)device.removeEventListener('gattserverdisconnected',this.disconnectBound);
+  this.characteristic=null;this.device=null;this.status=null;
+  if(this.pending){const p=this.pending;this.pending=null;clearTimeout(p.timer);p.reject(new Error('Bluetooth disconnected; reconnect before sending another command.'));}
+  if(closeGatt&&device&&device.gatt.connected)device.gatt.disconnect();
+  if(characteristic)this.record('disconnected');
+ }
+ receive(value){
+  const bytes=new Uint8Array(value.buffer,value.byteOffset,value.byteLength);
+  this.record('rx',{hex:hex(bytes)});
+  let status;try{status=decodeStatus(value);}catch(error){this.record('ignored_notification',{message:error.message});return;}
+  this.status=status;this.record('status',{status});
+  if(this.pending){const p=this.pending;this.pending=null;clearTimeout(p.timer);p.resolve(status);}
+ }
+ send(op,arg=0){
+  const frame=encodeRequest(op,arg),session=this.session;this.depth++;
+  const job=this.queue.catch(()=>{}).then(async()=>{
+   if(!this.connected||this.session!==session)throw new Error('Bluetooth connection changed; reconnect and read status.');
+   const characteristic=this.characteristic;
+   const response=new Promise((resolve,reject)=>{this.pending={resolve,reject,op,timer:setTimeout(()=>{
+    if(!this.pending)return;
+    const p=this.pending;this.pending=null;p.reject(new Error('No response from the tag. Reconnect to avoid confusing a late reply with another command.'));
+   },this.timeoutMs)};});
+   this.record('tx',{hex:hex(frame),operation:op,argument:arg});
+   try{
+    const write=Promise.resolve().then(()=>characteristic.writeValueWithoutResponse?characteristic.writeValueWithoutResponse(frame):characteristic.writeValueWithResponse?characteristic.writeValueWithResponse(frame):characteristic.writeValue(frame));
+    const [,status]=await Promise.all([write,response]);return status;
+   }catch(error){this.record('transport_error',{message:error.message,operation:op});this.disconnect();throw error;}
+  }).finally(()=>{this.depth--;});
+  this.queue=job;return job;
+ }
+ exportSession(){return {schema:'nebular437-discovery-session-v2',firmware:'D10',exportedAt:new Date().toISOString(),device:this.deviceInfo,lastStatus:this.status,events:this.events.slice()};}
+}
+function initUI(){
+ const el=id=>document.getElementById(id),ui={last:null,session:null,poll:null,busy:false};
+ const transport=new DiscoveryTransport(event=>{
+  if(event.kind==='status'){
+   const changed=!ui.last||event.status.attempt!==ui.last.attempt||event.status.stage!==ui.last.stage;
+   ui.last=event.status;if(changed)el('observed').checked=false;render();
+  }
+  if(event.kind==='disconnected'){ui.last=null;el('observed').checked=false;el('connection').textContent='Disconnected';el('summary').textContent='Disconnected. Automatic trials may still be running on the tag.';render();}
+  const short=transport.events.slice(-24).map(e=>e.time.slice(11,19)+' '+e.kind+' '+(e.hex||e.message||(e.status?'attempt '+e.status.attempt+', profile '+e.status.profile+', stage '+e.status.stage+', result '+e.status.result:'')));
+  el('log').textContent=short.join('\n');
+ });
+ function render(){
+  const s=ui.last,ready=transport.connected&&!ui.busy&&transport.depth===0;
+  document.querySelectorAll('[data-command]').forEach(button=>button.disabled=!ready||!s||!s.bankMatched||(s.running&&Number(button.dataset.command)!==OP.pause)||(s.fixedBuild&&![OP.pause,OP.repeat].includes(Number(button.dataset.command))));
+  el('select').disabled=!ready||!s||!s.bankMatched||s.running||s.fixedBuild;el('disconnect').disabled=!transport.connected;
+  el('connect').disabled=ui.busy||transport.connected;
+  const why=confirmationError(s,el('attemptInput').value,el('observed').checked);
+  el('confirm').disabled=!ready||!!why;el('confirmHelp').textContent=why||'Ready to confirm only the attempt number you entered.';
+  if(!s)return;
+  el('profile').textContent=s.profile<=3?String(s.profile):'—';el('attempt').textContent=String(s.attempt);
+  el('bank').textContent=s.bankMatched?(BANKS[s.bank]||'Bank '+s.bank):'Unrecognized';el('temperature').textContent=s.band===255?'Not sampled':s.temperature+' °C';
+  el('mode').textContent=s.fixedBuild?'Fixed profile '+s.profile:s.paused?'Paused':s.auto?'Automatic':'Manual';el('wait').textContent=(s.nextProfile<=3?'Profile '+s.nextProfile:'No next trial')+' / '+s.waitSeconds+' s';
+  el('confirmation').textContent=s.confirmed?'Confirmed profile '+s.selectedProfile:s.selectedProfile<=3?'Testing profile '+s.selectedProfile:'None selected';
+  el('details').textContent=(STAGES[s.stage]||'Stage '+s.stage)+' / '+s.panelState+' / '+s.band;
+  el('journal').textContent=s.journalHealthy?'Recording':'Full, missing or write fault';
+  el('summary').textContent=!s.bankMatched?'Factory bank unrecognized. Display testing is blocked.':s.fixedBuild?'Fixed-profile build: profile '+s.profile+'. Inspect the physical image; Repeat redraws this profile.':s.confirmed?'The firmware reports profile '+s.selectedProfile+' confirmed. Export this session.':s.running?'Drawing attempt '+s.attempt+' with profile '+s.profile+'. Let the panel finish.':s.lastSuccess?'Attempt '+s.attempt+' completed electrically. Inspect the physical image.':'Ready / previous attempt did not complete successfully. Inspect the session details.';
+ }
+ async function act(op,arg=0){
+  if(ui.busy)return;
+  ui.busy=true;if(op!==OP.status)el('error').textContent='';render();
+  try{const status=await transport.send(op,arg);if(status.result)el('error').textContent=(RESULTS[status.result]||'Unknown firmware result')+' (code '+status.result+').';if(op===OP.confirm){el('observed').checked=false;el('attemptInput').value='';}}
+  catch(error){el('error').textContent=error.message;}
+  finally{ui.busy=false;render();}
+ }
+ el('connect').onclick=async()=>{ui.busy=true;el('error').textContent='';render();try{await transport.connect(navigator.bluetooth);el('connection').textContent=transport.deviceInfo.name||'Connected tag';ui.busy=false;await act(OP.status);}catch(error){el('error').textContent=error.message;}finally{ui.busy=false;render();}};
+ el('disconnect').onclick=()=>{transport.disconnect();render();};
+ document.querySelectorAll('[data-command]').forEach(button=>button.onclick=()=>act(Number(button.dataset.command)));
+ el('select').onclick=()=>{el('observed').checked=false;el('attemptInput').value='';act(OP.select,Number(el('profileSelect').value));};
+ el('attemptInput').oninput=render;el('observed').onchange=render;
+ el('confirm').onclick=()=>{const why=confirmationError(ui.last,el('attemptInput').value,el('observed').checked);if(why){el('error').textContent=why;return;}act(OP.confirm,Number(el('attemptInput').value));};
+ el('export').onclick=()=>{const blob=new Blob([JSON.stringify(transport.exportSession(),null,2)+'\n'],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='437-discovery-D10-'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+ ui.poll=setInterval(()=>{if(transport.connected&&!ui.busy&&transport.depth===0)act(OP.status);},2000);
+ window.addEventListener('pagehide',()=>{clearInterval(ui.poll);transport.disconnect();});render();
+}
+globalThis.Discovery437={UUID,OP,BANKS,STAGES,RESULTS,encodeRequest,decodeStatus,confirmationError,DiscoveryTransport};
+if(typeof document!=='undefined')initUI();
+})();
+</script></body></html>

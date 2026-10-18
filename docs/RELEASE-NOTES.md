@@ -1,3 +1,18 @@
+# Simple D10 installer — 18 October 2026
+
+The new `/d10/` page includes the pinned D10 discovery firmware and guides users
+through programmer connection, SWS port selection, and saving a fresh backup
+before installation. There are no firmware, backup-upload or speed choices.
+It reuses the existing writer and recovery backend at 921600 baud with
+conservative writes, adds the D10 planner's product/waveform checks before
+unlock, and includes the matching display controller and an expected-screen
+preview. Existing personal recovery links and the full tools remain available.
+
+The browser checks cover the actual included binary, backup persistence before
+erase, whole-flash preservation, rejected targets, disk/readback failures,
+wrong-port selection, cancellation and recovery/protection failures. Devices
+are simulated; physical flashing and display behavior remain unverified.
+
 # Temporary browser recovery 2026-10-13.4
 
 A separate temporary support page recovers the interrupted tag directly in the
