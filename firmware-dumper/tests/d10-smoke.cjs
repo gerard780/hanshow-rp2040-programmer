@@ -24,6 +24,14 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
         window.mockBridge = new FakeRP2040();
         window.mockBridge.version = options.oldBridge ? 0x10005 : 0x10006;
         window.mockBridge.allowFlash = true;
+        if (options.activationEchoFailure) {
+          const echo = window.mockBridge.echo.bind(window.mockBridge);
+          window.mockBridge.echo = bytes => {
+            const copy = bytes.slice();
+            if (window.activeReader?.activationStage === 'halt_confirmation') copy[0] ^= 1;
+            echo(copy);
+          };
+        }
         if (options.badProduct) window.mockBridge.memory[0x7e010] ^= 1;
         if (options.badWaveform) window.mockBridge.memory[0x79000] ^= 1;
         if (options.failedRecovery) window.mockBridge.ignoreErase = true;
@@ -76,7 +84,7 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       await page.evaluate(() => {
         const activate = FirmwareDump.RP2040Reader.prototype.activate;
-        FirmwareDump.RP2040Reader.prototype.activate = function (options) { return activate.call(this, {...options, activationMs: 100}); };
+        FirmwareDump.RP2040Reader.prototype.activate = function (options) { window.activeReader = this; return activate.call(this, {...options, activationMs: 100}); };
       });
       if (options.differingReads || options.blankReads || options.transientReads) await page.evaluate(({differingReads, transientReads}) => {
         const fullRead = FirmwareFlash.FlashSession.prototype.fullRead;
@@ -127,9 +135,10 @@ const url = process.env.D10_URL || 'http://127.0.0.1:8778/docs/d10/';
     assert(report.events.findIndex(e => e.event === 'recovery_backup_saved') < report.events.findIndex(e => e.event === 'sector_attempted'));
     await happy.page.screenshot({path: '/tmp/d10-simple-complete.png', fullPage: true}); await close(happy);
 
-    for (const options of [{badProduct:true}, {badWaveform:true}, {diskFailure:true}, {corruptBackup:true}, {wrongPort:true}]) {
+    for (const options of [{badProduct:true}, {badWaveform:true}, {diskFailure:true}, {corruptBackup:true}, {wrongPort:true}, {activationEchoFailure:true}]) {
       const c = await scenario(options); await c.connect(); await c.page.locator('#install').click();
-      await c.page.waitForFunction(() => document.getElementById('status').textContent === 'D10 was not installed.', {timeout:60000});
+      const expected = options.wrongPort || options.activationEchoFailure ? 'Tag connection failed. No firmware was written.' : 'D10 was not installed.';
+      await c.page.waitForFunction(expected => document.getElementById('status').textContent === expected, expected, {timeout:60000});
       assert.deepEqual(await c.page.evaluate(() => window.mockBridge.eraseOrder), []);
       assert.deepEqual(await c.page.evaluate(() => window.mockBridge.statusWrites), []);
       assert(await c.page.locator('#after-install').isHidden()); await close(c);

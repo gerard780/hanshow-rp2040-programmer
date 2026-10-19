@@ -55,7 +55,7 @@
     </div>
   </section>
   <details><summary>Activity and technical details</summary>
-    <p class="hint">D10 discovery · experimental · page revision 2026-10-18.4. Supported 437 waveform banks: 0ASSPQ0NX, 0BNSPQ0UK and 0BNSPQ069. Installation uses the existing v1.6 writer at 460800 baud, up to three backup-read attempts, and up to three checked attempts per application sector. Retries stop if tag identity, protection or repeatable readback cannot be verified. Files stay on your computer. Browser tests use simulated devices; physical installation through this page remains unverified.</p>
+    <p class="hint">D10 discovery · experimental · page revision 2026-10-19.1. Supported 437 waveform banks: 0ASSPQ0NX, 0BNSPQ0UK and 0BNSPQ069. Installation uses the existing v1.6 writer at 460800 baud with paced activation, up to three backup-read attempts, and up to three checked attempts per application sector. Retries stop if tag identity, protection or repeatable readback cannot be verified. Files stay on your computer. Browser tests use simulated devices; physical installation through this page remains unverified.</p>
     <pre id="log" role="log"></pre>
   </details>
   <p class="footer"><a href="../tools/">Full read/write tools</a> · <a href="https://gist.github.com/gerard780/4c4f7510a67268b1721486249fa121b2">D10 firmware and notes</a></p>
@@ -237,18 +237,32 @@
         await sleep(100);
         await this.io.port.setSignals({dataTerminalReady: false, requestToSend: false});
       }
+      this.activationStage = 'halt_burst';
       this.log(haltOnly ? 'Pausing the tag for recovery without resetting it…' : 'Stopping the CPU and calibrating SWS…');
-      if (!haltOnly) await this.io.send(writePacket(0x6f, [0x20]), false);
+      let pendingEchoBytes = 0;
+      if (!haltOnly) {
+        const packet = writePacket(0x6f, [0x20]);
+        await this.io.send(packet, false); pendingEchoBytes += packet.length;
+      }
       const deadline = performance.now() + activationMs;
       while (performance.now() < deadline) {
         check(signal);
-        for (let i = 0; i < 5; i++) await this.io.send(writePacket(0x602, [5]), false);
+        for (let i = 0; i < 5; i++) {
+          const packet = writePacket(0x602, [5]);
+          await this.io.send(packet, false); pendingEchoBytes += packet.length;
+        }
+        if (this.drainActivationEcho) {
+          await this.drainActivationEcho(pendingEchoBytes, signal); pendingEchoBytes = 0;
+        }
         this.io.clear();
         // Bound queued UART data before sending another stop burst.
         await sleep(5);
       }
+      if (pendingEchoBytes && this.drainActivationEcho) await this.drainActivationEcho(pendingEchoBytes, signal);
+      this.activationStage = 'halt_confirmation';
       await this.io.settle(); await this.io.send(stop()); await this.reg(0x602, [5]);
       for (let divisor = Math.round(32000000 / this.baudRate); divisor <= Math.round(96000000 / this.baudRate); divisor++) {
+        this.activationStage = 'clock_probe';
         check(signal); await this.io.settle();
         await this.reg(0xb2, [divisor]);
         try {
@@ -260,6 +274,7 @@
             throw new Error(`Unsupported chip ${hex(ids[0])}; this reader supports TLSR825x ID 0x5562`);
           }
           this.log(`Chip ${hex(ids[0])}, initial SWS probe divider ${divisor}`);
+          this.activationStage = 'flash_wake';
           // Release flash deep power-down (0xAB); does not program flash.
           await this.reg(0x0d, [0]); await this.reg(0x0c, [0xab, 1]); await this.reg(0x0d, [1]);
           await sleep(1);
@@ -362,6 +377,16 @@
 
   class RP2040Reader extends Reader {
     constructor(io, bridge, log, baudRate = 921600) { super(io, log, baudRate); this.bridge = bridge; this.blockSize = 4096; }
+    async drainActivationEcho(count, signal) {
+      this.activationStage = 'halt_echo_drain'; check(signal);
+      // Web Serial write completion acknowledges USB queuing, not physical SWS
+      // delivery. Consume each bounded halt burst's echoes before sending more.
+      // These activation writes were already unverified; normal send() echo
+      // validation remains strict, including the following stop/confirmation.
+      const timeout = Math.max(this.io.timeout, Math.ceil(count * 10000 / this.baudRate) + 250);
+      await this.io.readExactly(count, timeout); check(signal);
+      this.activationStage = 'halt_burst';
+    }
     activateRecovery(options = {}) { return this.activate({...options, pulseReset: false, haltOnly: true}); }
     async resynchronize() {
       if (!this.paired) throw new Error('Cannot resynchronize an unpaired programmer');
@@ -375,27 +400,35 @@
       if (!equal(await this.read(0x602, 1), Uint8Array.of(5))) throw new Error('Recovery CPU halt did not verify');
     }
     async activate(options) {
-      // Verify that the separately selected serial port belongs to this bridge's
-      // SWS interface before stopping a CPU. Wrong UART/board selections fail.
-      await this.io.settle();
-      const before = await this.bridge.status();
-      await this.io.send(stop()); await sleep(25);
-      const after = await this.bridge.status();
-      if (((after.tx - before.tx) >>> 0) !== 10) throw new Error('Serial and USB selections do not match. Select this RP2040’s SWS port (if00), close other tools and retry');
-      this.paired = true;
-      if (after.baudRate !== this.baudRate) throw new Error(`RP2040 baud rate ${after.baudRate} does not match selected ${this.baudRate}`);
-      const identity = await super.activate(options);
-      // Same 24 MHz SWS rate used in the verified Zero block benchmarks.
-      const divisor = Math.round(48000000 / this.baudRate);
-      await this.reg(0xb2, [divisor]);
-      if (!equal(await this.read(0xb2, 1, options.signal), Uint8Array.of(divisor))) throw new Error('RP2040 SWS divider verification failed');
-      identity.divisor = divisor;
-      this.log(`Capture timing: ${this.baudRate.toLocaleString()} baud, SWS divider ${divisor} (24 MHz clock setting).`);
-      this.baseline = await this.bridge.status();
-      this.transportDetails = {programmer: 'Hanshow RP2040-Zero', bridgeVersion: this.baseline.version,
-        bridgeSerial: this.bridge.device.serialNumber, mode: 'native 4096-byte USB blocks',
-        initialTransportFaults: this.baseline.faults};
-      return identity;
+      this.activationStage = 'port_association';
+      try {
+        // Verify that the separately selected serial port belongs to this bridge's
+        // SWS interface before stopping a CPU. Wrong UART/board selections fail.
+        await this.io.settle();
+        const before = await this.bridge.status();
+        await this.io.send(stop()); await sleep(25);
+        const after = await this.bridge.status();
+        if (((after.tx - before.tx) >>> 0) !== 10) throw new Error('Serial and USB selections do not match. Select this RP2040’s SWS port (if00), close other tools and retry');
+        this.paired = true;
+        if (after.baudRate !== this.baudRate) throw new Error(`RP2040 baud rate ${after.baudRate} does not match selected ${this.baudRate}`);
+        const identity = await super.activate(options);
+        this.activationStage = 'capture_timing';
+        // Same 24 MHz SWS rate used in the verified Zero block benchmarks.
+        const divisor = Math.round(48000000 / this.baudRate);
+        await this.reg(0xb2, [divisor]);
+        if (!equal(await this.read(0xb2, 1, options.signal), Uint8Array.of(divisor))) throw new Error('RP2040 SWS divider verification failed');
+        identity.divisor = divisor;
+        this.log(`Capture timing: ${this.baudRate.toLocaleString()} baud, SWS divider ${divisor} (24 MHz clock setting).`);
+        this.baseline = await this.bridge.status();
+        this.transportDetails = {programmer: 'Hanshow RP2040-Zero', bridgeVersion: this.baseline.version,
+          bridgeSerial: this.bridge.device.serialNumber, mode: 'native 4096-byte USB blocks',
+          initialTransportFaults: this.baseline.faults};
+        this.activationStage = 'ready';
+        return identity;
+      } catch (error) {
+        error.activationDiagnostic = {stage: this.activationStage, baudRate: this.baudRate, portAssociated: !!this.paired};
+        throw error;
+      }
     }
     async blockRead(address, count, signal) {
       await this.io.send(encode(header(address, 0x80)));
@@ -774,6 +807,7 @@
       requireValue(!apply || [460800, 921600, 1500000].includes(reader.baudRate), 'Browser writes require 1.5 Mbaud or 921600 baud, or 460800 baud for slower operation. Disconnect and select the lower rate before opening the SWS port; 2 Mbaud remains available for readback and checks');
       cancelled(signal);
       const identity = await reader.activate(options);
+      Object.assign(report, identity);
       requireValue(identity.chipId === '026255', 'Flashing supports chip 026255 only');
       requireValue(equal(await reader.read(0x602, 1, signal), Uint8Array.of(5)), 'CPU halt did not verify');
       requireValue(hex(await flash.spi([0x9f], 3)) === 'eb6013', 'Flashing supports EB6013 512 KiB flash only');
@@ -871,6 +905,7 @@
     } catch (error) {
       failure = error; event('installation_failed', {message: error.message});
       if (error.transportDiagnostic) report.transportDiagnostic = error.transportDiagnostic;
+      if (error.activationDiagnostic) report.activationDiagnostic = error.activationDiagnostic;
       if (error.sectorDiagnostic) report.sectorDiagnostic = error.sectorDiagnostic;
       if (touched.length && before) {
         imageVerified = false;
@@ -1031,6 +1066,7 @@
   const $ = id => document.getElementById(id);
   const {SerialIO, USBBridge, RP2040Reader, equal} = FirmwareDump;
   const BAUD = 460800;
+  const PAGE_REVISION = '2026-10-19.1';
   const supported = isSecureContext && !!navigator.usb && !!navigator.serial &&
     !!crypto.subtle && typeof window.showSaveFilePicker === 'function';
   let firmware = null, bridge = null, io = null, busy = false, controller = null, completed = false;
@@ -1141,7 +1177,10 @@
     } catch (error) { failure = error; report = error.report; log(error.message); }
     finally {
       const warnings = await disconnect();
-      if (report) { report.connectionCleanupWarnings = warnings; report.durationSeconds = (performance.now() - started) / 1000; }
+      if (report) {
+        report.connectionCleanupWarnings = warnings; report.durationSeconds = (performance.now() - started) / 1000;
+        report.pageRevision = PAGE_REVISION; report.requestedFirmwareSha256 = D10Firmware.manifest.sha256;
+      }
       controller = null; busy = false; render();
     }
     if (report) {
@@ -1158,6 +1197,9 @@
       } else if (report?.backupValidation?.valid === false) {
         $('status').textContent = 'Backup check failed. No firmware was written.';
         $('detail').textContent = 'Save the installation report. Check the SWS connections, short wires, common ground and stable 3.3 V power before retrying. Keep your existing backups; these reads were not accepted as a usable backup.';
+      } else if (report?.activationDiagnostic) {
+        $('status').textContent = 'Tag connection failed. No firmware was written.';
+        $('detail').textContent = 'Save the installation report, disconnect the programmer and reconnect its SWS port. If this repeats, check the SWS wiring and tag power. Backup and write retries start after connection setup succeeds.';
       } else {
         $('status').textContent = report?.recoveryVerified ? 'Stopped safely. Your previous firmware was restored.' : 'D10 was not installed.';
         $('detail').textContent = report?.backupSaved ? `Keep your backup (${handle.name}) and save the report. Reconnect if you want to try again.` : 'No verified backup was saved. Read the error above before reconnecting.';
@@ -1175,7 +1217,7 @@
   }
   (async () => {
     try {
-      log('D10 installer page revision 2026-10-18.4 · 460800 baud · up to 3 backup and sector-write attempts');
+      log(`D10 installer page revision ${PAGE_REVISION} · 460800 baud · paced activation · up to 3 backup and sector-write attempts`);
       const bytes = Uint8Array.from(atob(D10Firmware.base64), c => c.charCodeAt(0));
       const meta = D10Firmware.manifest;
       if (bytes.length !== meta.bytes || await FirmwareFlash.digest(bytes) !== meta.sha256) throw new Error('Included firmware failed its integrity check. Reload the page before connecting.');

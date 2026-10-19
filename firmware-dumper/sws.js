@@ -174,18 +174,32 @@
         await sleep(100);
         await this.io.port.setSignals({dataTerminalReady: false, requestToSend: false});
       }
+      this.activationStage = 'halt_burst';
       this.log(haltOnly ? 'Pausing the tag for recovery without resetting it…' : 'Stopping the CPU and calibrating SWS…');
-      if (!haltOnly) await this.io.send(writePacket(0x6f, [0x20]), false);
+      let pendingEchoBytes = 0;
+      if (!haltOnly) {
+        const packet = writePacket(0x6f, [0x20]);
+        await this.io.send(packet, false); pendingEchoBytes += packet.length;
+      }
       const deadline = performance.now() + activationMs;
       while (performance.now() < deadline) {
         check(signal);
-        for (let i = 0; i < 5; i++) await this.io.send(writePacket(0x602, [5]), false);
+        for (let i = 0; i < 5; i++) {
+          const packet = writePacket(0x602, [5]);
+          await this.io.send(packet, false); pendingEchoBytes += packet.length;
+        }
+        if (this.drainActivationEcho) {
+          await this.drainActivationEcho(pendingEchoBytes, signal); pendingEchoBytes = 0;
+        }
         this.io.clear();
         // Bound queued UART data before sending another stop burst.
         await sleep(5);
       }
+      if (pendingEchoBytes && this.drainActivationEcho) await this.drainActivationEcho(pendingEchoBytes, signal);
+      this.activationStage = 'halt_confirmation';
       await this.io.settle(); await this.io.send(stop()); await this.reg(0x602, [5]);
       for (let divisor = Math.round(32000000 / this.baudRate); divisor <= Math.round(96000000 / this.baudRate); divisor++) {
+        this.activationStage = 'clock_probe';
         check(signal); await this.io.settle();
         await this.reg(0xb2, [divisor]);
         try {
@@ -197,6 +211,7 @@
             throw new Error(`Unsupported chip ${hex(ids[0])}; this reader supports TLSR825x ID 0x5562`);
           }
           this.log(`Chip ${hex(ids[0])}, initial SWS probe divider ${divisor}`);
+          this.activationStage = 'flash_wake';
           // Release flash deep power-down (0xAB); does not program flash.
           await this.reg(0x0d, [0]); await this.reg(0x0c, [0xab, 1]); await this.reg(0x0d, [1]);
           await sleep(1);
@@ -299,6 +314,16 @@
 
   class RP2040Reader extends Reader {
     constructor(io, bridge, log, baudRate = 921600) { super(io, log, baudRate); this.bridge = bridge; this.blockSize = 4096; }
+    async drainActivationEcho(count, signal) {
+      this.activationStage = 'halt_echo_drain'; check(signal);
+      // Web Serial write completion acknowledges USB queuing, not physical SWS
+      // delivery. Consume each bounded halt burst's echoes before sending more.
+      // These activation writes were already unverified; normal send() echo
+      // validation remains strict, including the following stop/confirmation.
+      const timeout = Math.max(this.io.timeout, Math.ceil(count * 10000 / this.baudRate) + 250);
+      await this.io.readExactly(count, timeout); check(signal);
+      this.activationStage = 'halt_burst';
+    }
     activateRecovery(options = {}) { return this.activate({...options, pulseReset: false, haltOnly: true}); }
     async resynchronize() {
       if (!this.paired) throw new Error('Cannot resynchronize an unpaired programmer');
@@ -312,27 +337,35 @@
       if (!equal(await this.read(0x602, 1), Uint8Array.of(5))) throw new Error('Recovery CPU halt did not verify');
     }
     async activate(options) {
-      // Verify that the separately selected serial port belongs to this bridge's
-      // SWS interface before stopping a CPU. Wrong UART/board selections fail.
-      await this.io.settle();
-      const before = await this.bridge.status();
-      await this.io.send(stop()); await sleep(25);
-      const after = await this.bridge.status();
-      if (((after.tx - before.tx) >>> 0) !== 10) throw new Error('Serial and USB selections do not match. Select this RP2040’s SWS port (if00), close other tools and retry');
-      this.paired = true;
-      if (after.baudRate !== this.baudRate) throw new Error(`RP2040 baud rate ${after.baudRate} does not match selected ${this.baudRate}`);
-      const identity = await super.activate(options);
-      // Same 24 MHz SWS rate used in the verified Zero block benchmarks.
-      const divisor = Math.round(48000000 / this.baudRate);
-      await this.reg(0xb2, [divisor]);
-      if (!equal(await this.read(0xb2, 1, options.signal), Uint8Array.of(divisor))) throw new Error('RP2040 SWS divider verification failed');
-      identity.divisor = divisor;
-      this.log(`Capture timing: ${this.baudRate.toLocaleString()} baud, SWS divider ${divisor} (24 MHz clock setting).`);
-      this.baseline = await this.bridge.status();
-      this.transportDetails = {programmer: 'Hanshow RP2040-Zero', bridgeVersion: this.baseline.version,
-        bridgeSerial: this.bridge.device.serialNumber, mode: 'native 4096-byte USB blocks',
-        initialTransportFaults: this.baseline.faults};
-      return identity;
+      this.activationStage = 'port_association';
+      try {
+        // Verify that the separately selected serial port belongs to this bridge's
+        // SWS interface before stopping a CPU. Wrong UART/board selections fail.
+        await this.io.settle();
+        const before = await this.bridge.status();
+        await this.io.send(stop()); await sleep(25);
+        const after = await this.bridge.status();
+        if (((after.tx - before.tx) >>> 0) !== 10) throw new Error('Serial and USB selections do not match. Select this RP2040’s SWS port (if00), close other tools and retry');
+        this.paired = true;
+        if (after.baudRate !== this.baudRate) throw new Error(`RP2040 baud rate ${after.baudRate} does not match selected ${this.baudRate}`);
+        const identity = await super.activate(options);
+        this.activationStage = 'capture_timing';
+        // Same 24 MHz SWS rate used in the verified Zero block benchmarks.
+        const divisor = Math.round(48000000 / this.baudRate);
+        await this.reg(0xb2, [divisor]);
+        if (!equal(await this.read(0xb2, 1, options.signal), Uint8Array.of(divisor))) throw new Error('RP2040 SWS divider verification failed');
+        identity.divisor = divisor;
+        this.log(`Capture timing: ${this.baudRate.toLocaleString()} baud, SWS divider ${divisor} (24 MHz clock setting).`);
+        this.baseline = await this.bridge.status();
+        this.transportDetails = {programmer: 'Hanshow RP2040-Zero', bridgeVersion: this.baseline.version,
+          bridgeSerial: this.bridge.device.serialNumber, mode: 'native 4096-byte USB blocks',
+          initialTransportFaults: this.baseline.faults};
+        this.activationStage = 'ready';
+        return identity;
+      } catch (error) {
+        error.activationDiagnostic = {stage: this.activationStage, baudRate: this.baudRate, portAssociated: !!this.paired};
+        throw error;
+      }
     }
     async blockRead(address, count, signal) {
       await this.io.send(encode(header(address, 0x80)));

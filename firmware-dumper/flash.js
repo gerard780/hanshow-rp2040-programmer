@@ -278,6 +278,7 @@
       requireValue(!apply || [460800, 921600, 1500000].includes(reader.baudRate), 'Browser writes require 1.5 Mbaud or 921600 baud, or 460800 baud for slower operation. Disconnect and select the lower rate before opening the SWS port; 2 Mbaud remains available for readback and checks');
       cancelled(signal);
       const identity = await reader.activate(options);
+      Object.assign(report, identity);
       requireValue(identity.chipId === '026255', 'Flashing supports chip 026255 only');
       requireValue(equal(await reader.read(0x602, 1, signal), Uint8Array.of(5)), 'CPU halt did not verify');
       requireValue(hex(await flash.spi([0x9f], 3)) === 'eb6013', 'Flashing supports EB6013 512 KiB flash only');
@@ -375,6 +376,7 @@
     } catch (error) {
       failure = error; event('installation_failed', {message: error.message});
       if (error.transportDiagnostic) report.transportDiagnostic = error.transportDiagnostic;
+      if (error.activationDiagnostic) report.activationDiagnostic = error.activationDiagnostic;
       if (error.sectorDiagnostic) report.sectorDiagnostic = error.sectorDiagnostic;
       if (touched.length && before) {
         imageVerified = false;

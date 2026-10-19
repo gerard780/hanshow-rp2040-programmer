@@ -8,12 +8,12 @@
     "CMakeLists.txt": "4f104ec63bb41b9d32d7b0d1093b5cc5e8b1c29449669c67122d8b607d2f9e6e",
     "readback.py": "975cc20b6f4d8b2b899a2c5f6884eb0fd219f990aab1b365e9ee605e6c857d16",
     "benchmark_readback.py": "db45b4242f76da6856c92551143c47394dd08b37416e712618718d1e4db247e0",
-    "firmware-dumper/sws.js": "d2559784d476f87ed3850425ad719b99b52ac4512a7c67057aeecd9dae6c01ef",
+    "firmware-dumper/sws.js": "fd522a4ea9f8d9e930f91d16a72dc38ca032c1d45a3ef3a8c4d9d6c46c2f7604",
     "tools/speed/flash_backend.py": "b1be13ef8c37d944f6ee4acc7fc62ceff63ac804a23ccffe110f26bf9712b5cf",
     "tools/speed/write_validation.py": "bcd4faba70930438e3b977354d1a4fd02fc825667feb28883c86b23dd1ee6139",
     "flash_application.py": "232e6e986886f12f19bbad159700e5680f6107f7232c67bce759cc9b857d4226",
     "tools/speed/application_install.py": "77513fdf618cd443df5543856782b69e42aea80c065535714232e55467fafa41",
-    "firmware-dumper/flash.js": "9be0bb5704e3bc3020ff17fa5c17f558f3a10633024fcb56c19ce591d4a4bacb",
+    "firmware-dumper/flash.js": "a61e73f408df5da1333359e1cbfa6aab4d0b5f18dc0b370907f19ce9b7dfb0da",
     "firmware-dumper/app.js": "30e5298b011736e4f9bd5ca3fb10bb0295885b7449e099ff52e9ab266951ab30",
     "firmware-dumper/build_standalone.py": "96cd8c796f4a17f2fad5182cf459ba80c89022809fa1cc0d5065730239371403",
     "firmware-dumper/discovery.js": "9dbd971507227b59457c7bcb33625930109f7b0be84c3140ed191c9e06f9081c",
@@ -28,19 +28,20 @@
     "firmware-dumper/support/config.js": "75223207b8aede0ee12e1d6ac2ddec1fd99cbf00c3f61267685009fe162225f8",
     "firmware-dumper/support/firmware.js": "c4f932a63fca0a22d29cf1c84d0de1f31a16ae67766890d7f2890b2def65b407",
     "firmware-dumper/support/app.js": "47bb405a89640c3c466dfa06a362f6db000c9f7671f4d497d0be33176542701a",
-    "firmware-dumper/d10/app.js": "fb5b8b9e34198acc6dd27000708922361787e7e8b697d4fac14248703685c7bc",
+    "firmware-dumper/d10/app.js": "c3acdce7edf53a7e328087c1ee481d114dcbaf76c592f1234ece41a3f268bb95",
     "firmware-dumper/d10/controller.html": "7bbf8e31bc9993b35443e2f0dfafefd98e57b1b6e3b1109e24780c34263ec31a",
     "firmware-dumper/d10/expected-screen.png": "e50a111bac1f468877aaf436faf44d8cc23405e46f5426e2b60e09126ab84122",
     "firmware-dumper/d10/firmware.js": "12b325c42c58041b02ca2e9fe159008bae6d4f9e6e944e28619357074b5f6a75",
     "firmware-dumper/d10/target.js": "ed4bf93d114a5f8816866b13a15130c984c2dc27d0bf9a40254441018f5a7995",
-    "firmware-dumper/d10/template.html": "740cdec4b820cd44ce9db9fd7c52b081afdb1c6f80888290c292c5273aa61925",
+    "firmware-dumper/d10/template.html": "0932187cb7585a2519b62ef46e641ffaef6e61d14ac4a7e873922c418b384493",
     "firmware-dumper/tests/d10.test.cjs": "676c84f31c9d1ee4067ec5bd85d8af1ae906ebed902fa61aa67ee4475319e68a",
-    "firmware-dumper/tests/d10-smoke.cjs": "88202fc1a3816eac213e7cc99c1decbdbd44d315c364c1e64604ec334439b51e",
+    "firmware-dumper/tests/d10-smoke.cjs": "97b43b7439ea712f2ad888b5a9711d3256f9eca50bed164084ee6b1ee5feb96c",
     "firmware-dumper/tests/backup-validation.test.cjs": "e1469454d1fe691258fb048d30b2f11328f30173d3274fc3d5be3a3914ffcb4a",
     "firmware-dumper/tests/single-bin.test.cjs": "a4be84c7423c596b056365f982a54168e7c7348c2a58d39475f1b796cb0f57f4",
     "firmware-dumper/tests/readback.test.cjs": "416d3076458014e1e96275bcae9504e833cb5177687cd71dac438764173e5c72",
     "firmware-dumper/tests/backup-retry.test.cjs": "4553e2f6ae17f53fd1efb68eb8e10aebdc4976366d57f5957af9a21be301f3f7",
-    "firmware-dumper/tests/write-retry.test.cjs": "c77545a7836a6af591b7490d427430d8bf8d9374e72b69f1ff526c69c5026d7e"
+    "firmware-dumper/tests/write-retry.test.cjs": "c77545a7836a6af591b7490d427430d8bf8d9374e72b69f1ff526c69c5026d7e",
+    "firmware-dumper/tests/activation-echo.test.cjs": "f9d7b0a8d16bbb5ee81f681bee36785dfef60e3d7427e7ae02487275c9dacee7"
   },
   "upstream_readers": [
     {
@@ -78,7 +79,7 @@
     "gist": "https://gist.github.com/gerard780/92feab930abb5c7cd4f30b419c8dbc4d",
     "gist_revision": "e2c08f926a6be2b5d51863aea84e235d94b46cfe"
   },
-  "d10_page_revision": "2026-10-18.4",
+  "d10_page_revision": "2026-10-19.1",
   "d10_application": {
     "name": "EXPERIMENTAL_ATC_Nebular_437_D10_discovery.bin",
     "sha256": "cea41f2aad7b9b0f6a4d3a89be401764a6abc5d50ebb167c628625f949ff1927",
@@ -88,5 +89,6 @@
   },
   "d10_baud_rate": 460800,
   "d10_backup_read_attempts": 3,
-  "d10_sector_write_attempts": 3
+  "d10_sector_write_attempts": 3,
+  "d10_activation": "Bounded halt bursts paced by draining their echo bytes before strict confirmation"
 }

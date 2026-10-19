@@ -3,6 +3,7 @@
   const $ = id => document.getElementById(id);
   const {SerialIO, USBBridge, RP2040Reader, equal} = FirmwareDump;
   const BAUD = 460800;
+  const PAGE_REVISION = '2026-10-19.1';
   const supported = isSecureContext && !!navigator.usb && !!navigator.serial &&
     !!crypto.subtle && typeof window.showSaveFilePicker === 'function';
   let firmware = null, bridge = null, io = null, busy = false, controller = null, completed = false;
@@ -113,7 +114,10 @@
     } catch (error) { failure = error; report = error.report; log(error.message); }
     finally {
       const warnings = await disconnect();
-      if (report) { report.connectionCleanupWarnings = warnings; report.durationSeconds = (performance.now() - started) / 1000; }
+      if (report) {
+        report.connectionCleanupWarnings = warnings; report.durationSeconds = (performance.now() - started) / 1000;
+        report.pageRevision = PAGE_REVISION; report.requestedFirmwareSha256 = D10Firmware.manifest.sha256;
+      }
       controller = null; busy = false; render();
     }
     if (report) {
@@ -130,6 +134,9 @@
       } else if (report?.backupValidation?.valid === false) {
         $('status').textContent = 'Backup check failed. No firmware was written.';
         $('detail').textContent = 'Save the installation report. Check the SWS connections, short wires, common ground and stable 3.3 V power before retrying. Keep your existing backups; these reads were not accepted as a usable backup.';
+      } else if (report?.activationDiagnostic) {
+        $('status').textContent = 'Tag connection failed. No firmware was written.';
+        $('detail').textContent = 'Save the installation report, disconnect the programmer and reconnect its SWS port. If this repeats, check the SWS wiring and tag power. Backup and write retries start after connection setup succeeds.';
       } else {
         $('status').textContent = report?.recoveryVerified ? 'Stopped safely. Your previous firmware was restored.' : 'D10 was not installed.';
         $('detail').textContent = report?.backupSaved ? `Keep your backup (${handle.name}) and save the report. Reconnect if you want to try again.` : 'No verified backup was saved. Read the error above before reconnecting.';
@@ -147,7 +154,7 @@
   }
   (async () => {
     try {
-      log('D10 installer page revision 2026-10-18.4 · 460800 baud · up to 3 backup and sector-write attempts');
+      log(`D10 installer page revision ${PAGE_REVISION} · 460800 baud · paced activation · up to 3 backup and sector-write attempts`);
       const bytes = Uint8Array.from(atob(D10Firmware.base64), c => c.charCodeAt(0));
       const meta = D10Firmware.manifest;
       if (bytes.length !== meta.bytes || await FirmwareFlash.digest(bytes) !== meta.sha256) throw new Error('Included firmware failed its integrity check. Reload the page before connecting.');

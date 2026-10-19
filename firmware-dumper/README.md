@@ -289,6 +289,19 @@ the report. Target checks, persisted backup, zero-last ordering, whole-flash
 verification and final protection restoration remain mandatory. Unit and
 Chromium tests use simulated devices; physical reliability is unverified.
 
+Page revision `2026-10-19.1` paces RP2040 activation by consuming the expected
+number of echo bytes from each previously unverified halt burst. It bounds
+queued traffic without treating Web Serial's write promise as physical delivery.
+The following stop, register writes and normal flash traffic still use strict
+echo comparisons. The generic reader retains its prior activation behavior.
+Missing echoes time out, and cancellation is checked around the drain.
+`activationDiagnostic` identifies `port_association`, `halt_burst`,
+`halt_echo_drain`, `halt_confirmation`, `clock_probe`, `flash_wake` or
+`capture_timing` when activation fails. D10 reports also include `pageRevision`
+and `requestedFirmwareSha256`; `webFlasherRevision` is the shared backend's
+legacy revision marker. A connection failure happens before backup/write
+retries. Cleanup warnings mean a successful restart was not verified.
+
 ## Temporary browser recovery page (2026-10-13.4)
 
 `support/template.html`, `support/config.js`, `support/firmware.js` and

@@ -1,5 +1,22 @@
 # Programmer validation
 
+## Paced activation — page 2026-10-19.1
+
+An asynchronous echo model accepts host writes immediately and transmits their
+bytes later with scheduling latency and baud-dependent wire time. With the
+activation drain disabled, the earlier loop fails an echo comparison after
+port association. With pacing enabled, the same model reaches chip `026255`
+and capture divider 104 at 460800 baud; unacknowledged data stays bounded to
+one burst (at most 420 encoded bytes including the initial reset command).
+Missing echo bytes stop at `halt_echo_drain`; cancellation prevents later flash
+access. A corrupted normal command echo still fails strict comparison.
+
+Chromium checks the new connection-failure UI alongside full installation,
+bounded read/write retries and recovery with simulated devices. No physical
+device was accessed. The user report establishes no backup or flash-write
+attempt and does not verify the cleanup restart. Simulation reproduces a
+possible software cause, not a confirmed diagnosis of the physical setup.
+
 ## Read and sector-write retries — page 2026-10-18.4
 
 Backup retry tests cover transient and persistent mismatches, partial native

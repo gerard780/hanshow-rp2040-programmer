@@ -1,3 +1,19 @@
+# Paced SWS activation — page 2026-10-19.1
+
+At 460800 baud, an unacknowledged halt burst can still be queued after Web
+Serial reports write completion. A model separating USB acceptance from physical
+transmission reproduces an echo mismatch with the earlier activation loop.
+RP2040 activation now consumes each bounded halt burst's echo bytes before
+sending another burst or beginning strict confirmation. Normal command/write
+echo validation is unchanged. Missing echoes stop activation; no backup/write
+retry bypasses that failure. No bridge UF2 or D10 application change is required.
+
+Reports include `activationDiagnostic` (stage, baud, port association) when
+activation fails, and the D10 page records `pageRevision` and the requested
+firmware hash. This distinguishes setup failures from backup/write attempts.
+The reproduced queueing case passes after the fix; physical confirmation of
+the reported failure's cause remains outstanding.
+
 # D10 read and write retries — page 2026-10-18.4
 
 The D10 page allows three backup attempts total. Failed or partial pairs are
