@@ -1,5 +1,38 @@
 # Recover an interrupted browser installation
 
+## D10 interrupted-install recovery — 2026-10-20.1
+
+The [D10 recovery page](https://gerard780.github.io/hanshow-rp2040-programmer/support/recovery-437-d10-20261020/)
+reads the failed installer's report and saved full backup on your computer.
+Select both files in step 1. The report can be the downloaded JSON file or a
+text file containing the complete JSON report; an activity log alone does not
+include the required identity and backup checks. The report must identify an
+unverified installation that left the CPU halted. Backup SHA-256 and flash UID
+must match that report before restoration. Neither file is uploaded, and no
+incident-specific identity or backup hashes are embedded in the public page.
+The USB/SWS association and programmer v1.6 checks still apply.
+
+Keep the tag powered. Disconnect only GP2 from tag RST, leave power, ground and
+both SWS connections in place, and close other programmer connections. Select
+the report and saved full backup, confirm the reset wire is disconnected, connect the
+programmer and choose its SWS port. Click **Check my tag**, then **Restore saved
+backup** after the check passes. Keep the page open throughout both operations.
+
+This page restores only the pre-install backup. It uses 460800 baud, 64-byte
+programs and native SPI status reads. Both check and restore require two fresh
+matching full reads, the correct tag identity and unchanged factory data above
+the application. Restore rechecks before writing and allows three checked
+attempts per sector. A retry requires a paused tag, matching UID/protection,
+two matching sector reads and no new transport faults; already correct data is
+accepted without another erase. New faults are not cleared or ignored.
+
+The final restart requires full 512 KiB equality and exact saved protection.
+On failure, keep power on, leave the tag paused and save the recovery report.
+Do not run the normal D10 installer on the interrupted image. The pre-install
+backup is not assumed to be factory firmware. Browser tests use simulated
+devices; physical recovery remains unverified. The older support page below
+retains its separate incident binding and settings.
+
 ## Temporary browser recovery page
 
 If Gerard sent you a temporary recovery link, use that page. It is set up for the

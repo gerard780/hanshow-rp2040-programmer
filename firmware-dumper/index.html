@@ -746,21 +746,21 @@
       requireValue(Number.isInteger(offset) && offset >= 0 && offset % SECTOR === 0 && offset + SECTOR <= SIZE, 'Read outside main flash');
       return this.spi([3, offset >> 16, offset >> 8 & 255, offset & 255], SECTOR);
     }
-    async writeSector(offset, data, before, recovery = false) {
+    async writeSector(offset, data, before, recovery = false, {nativeStatus = false} = {}) {
       requireValue(offset % SECTOR === 0 && offset >= 0 && offset + SECTOR <= LIMIT && data.length === SECTOR && before.length === SECTOR,
         'Write outside application sector boundaries');
       let phase = 'prewrite', mutationAttempted = false;
       try {
         requireValue(equal(await this.readSector(offset), before), 'Live sector differs from saved pre-write contents');
         phase = 'erase'; await this.spi([6]); mutationAttempted = true;
-        await this.spi([0x20, offset >> 16, offset >> 8 & 255, offset & 255]); await this.ready(recovery);
+        await this.spi([0x20, offset >> 16, offset >> 8 & 255, offset & 255]); await this.ready(recovery && !nativeStatus);
         phase = 'blank_check';
         requireValue((await this.readSector(offset)).every(byte => byte === 255), 'Sector did not become erased; programming refused');
         phase = 'program'; const chunk = recovery ? 64 : PAGE;
         for (let index = 0; index < SECTOR; index += chunk) {
           const page = data.subarray(index, index + chunk), address = offset + index;
           if (page.every(byte => byte === 255)) continue;
-          await this.spi([6]); await this.spi([2, address >> 16, address >> 8 & 255, address & 255, ...page]); await this.ready(recovery);
+          await this.spi([6]); await this.spi([2, address >> 16, address >> 8 & 255, address & 255, ...page]); await this.ready(recovery && !nativeStatus);
         }
         phase = 'verify'; const actual = await this.readSector(offset);
         if (!equal(actual, data)) {

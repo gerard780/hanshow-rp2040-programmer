@@ -10,15 +10,15 @@ const {fixture} = require('./flash-fixture.cjs');
 const timer = global.setTimeout;
 before(()=>{global.setTimeout=(fn,ms,...args)=>timer(fn,[25,50,60,100].includes(ms)?1:ms,...args);});
 after(()=>{global.setTimeout=timer;});
-async function setup() {
+async function setup(baudRate = 921600) {
   const fake=new FakeRP2040();fake.version=0x10006;fake.allowFlash=true;fake.protection=0;
   const original=fake.memory.slice();
   for(const address of [0x3000,0x4000,0x5000,0x6000,0x7000]) fake.memory[address]^=1;
   const source={apply:true,verified:false,cpuKeptHalted:true,chipId:'026255',jedecId:'eb6013',bridgeVersion:'1.6',applicationBytes:131072,
     protectionOriginal:44,backupSha256:await F.digest(original),flashUidSha256:await F.digest(fake.flashUid),
     programmerSha256:await F.digest(new TextEncoder().encode(fake.serialNumber))};
-  const bridge=new USBBridge(fake);await bridge.open();await fake.open({baudRate:921600});
-  const io=new SerialIO(fake,1500),reader=new RP2040Reader(io,bridge,undefined,921600);
+  const bridge=new USBBridge(fake);await bridge.open();await fake.open({baudRate});
+  const io=new SerialIO(fake,1500),reader=new RP2040Reader(io,bridge,undefined,baudRate);
   return {fake,original,source,reader,options:{resetWireDisconnected:true,activationMs:100},
     close:async()=>{await io.close();await bridge.close();}};
 }
@@ -32,6 +32,74 @@ test('backup hash/size, report identity and reset-wire confirmation reject befor
     await assert.rejects(R.recoverApplication({},e.original,e.source),/Remove the wire/);
     await assert.rejects(R.restoreAndInstall(e.reader,e.original,e.source,new Uint8Array(64),e.options));
     assert.equal(e.fake.tx,0);assert.deepEqual(e.fake.eraseOrder,[]);assert.equal(e.fake.resets,0);
+  }finally{await e.close();}
+});
+test('460800 recovery restores the mixed D10 failure state using 64-byte writes without legacy status sampling',async()=>{
+  const e=await setup(460800),read=e.reader.read.bind(e.reader),reg=e.reader.reg.bind(e.reader);
+  e.fake.protection=44;e.fake.memory.set(e.original.subarray(0x3000,0x4000),0x3000);
+  e.fake.memory.fill(255,0x4800,0x4900);e.fake.memory.fill(255,0x5300,0x6000);
+  e.reader.read=async(address,...args)=>{assert.notEqual(address,0x0c,'Legacy SPI reply sampling must not be used');return read(address,...args);};
+  e.reader.reg=async(address,data)=>{
+    if(address===0x0c&&data[0]===2)assert.equal(data.length,68);
+    if(address===0x6f){assert.deepEqual(e.fake.memory,e.original);assert.equal(e.fake.protection,44);}
+    return reg(address,data);
+  };
+  try{
+    const report=await R.recoverApplication(e.reader,e.original,e.source,{...e.options,apply:true,nativeStatus:true,sectorWriteAttempts:3});
+    assert(report.verified&&report.imageVerified&&report.protectionVerified&&report.cpuResetVerified);
+    assert(!report.plannedSectors.includes(0x3000));assert(report.restoredSectors.includes(0x4000)&&report.restoredSectors.includes(0x5000));
+    assert.equal(report.baudRate,460800);assert.equal(report.nativeStatus,true);assert.equal(e.fake.resets,1);
+  }finally{await e.close();}
+});
+test('recovery retries a stable misprogrammed sector after checking identity and does not touch sector zero early',async()=>{
+  const e=await setup(460800),execute=e.fake.executeFlash.bind(e.fake);let damaged=false;
+  e.fake.executeFlash=command=>{execute(command);if(command[0]===2&&command[2]===0x4f&&command[3]===0xc0&&!damaged){damaged=true;e.fake.memory[0x4809]^=1;}};
+  e.fake.memory[0]^=1;
+  try{
+    const report=await R.recoverApplication(e.reader,e.original,e.source,{...e.options,apply:true,nativeStatus:true,sectorWriteAttempts:3});
+    assert(report.verified);assert.deepEqual(e.fake.eraseOrder,[0x3000,0x4000,0x4000,0x5000,0x6000,0x7000,0]);
+    assert.equal(report.sectorWriteAttempts.find(x=>x.status==='failed').sectorDiagnostic.firstMismatchAddress,0x4809);
+    assert.deepEqual(e.fake.memory,e.original);assert.equal(e.fake.resets,1);
+  }finally{await e.close();}
+});
+test('a lost readback after successful recovery programming is accepted only after two matching reads',async()=>{
+  const e=await setup(460800),block=e.reader.blockRead.bind(e.reader);let dropped=false;
+  e.reader.blockRead=async(...args)=>{const data=await block(...args);if(args[1]===4096&&e.fake.programCount===64&&!dropped){dropped=true;throw new Error('Lost final readback acknowledgement');}return data;};
+  try{
+    const report=await R.recoverApplication(e.reader,e.original,e.source,{...e.options,apply:true,nativeStatus:true,sectorWriteAttempts:3});
+    assert(report.verified);assert.equal(e.fake.eraseOrder.filter(x=>x===0x3000).length,1);
+    assert(report.sectorWriteAttempts.some(x=>x.offset===0x3000&&x.status==='already_verified'));assert.equal(e.fake.resets,1);
+  }finally{await e.close();}
+});
+test('recovery retry guards reject new transport faults, changed UID/protection, unstable reads and cancellation',async()=>{
+  for(const mode of ['fault','uid','protection','reads','cancel']){
+    const e=await setup(460800),execute=e.fake.executeFlash.bind(e.fake),controller=new AbortController();let damaged=false;
+    e.fake.executeFlash=command=>{execute(command);if(command[0]===2&&command[2]===0x3f&&command[3]===0xc0&&!damaged){damaged=true;e.fake.memory[0x3809]^=1;}};
+    e.options.onEvent=name=>{if(name==='recovery_sector_attempt_failed'){
+      if(mode==='fault')e.fake.faults++;
+      if(mode==='uid')e.fake.flashUid[0]^=1;
+      if(mode==='protection')e.fake.protection=44;
+      if(mode==='cancel')controller.abort();
+    }};
+    if(mode==='reads'){
+      const block=e.reader.blockRead.bind(e.reader);let retryReads=0;
+      e.reader.blockRead=async(...args)=>{const data=await block(...args);if(damaged&&args[1]===4096&&++retryReads===3)data[10]^=1;return data;};
+    }
+    try{
+      let error;try{await R.recoverApplication(e.reader,e.original,e.source,{...e.options,apply:true,nativeStatus:true,sectorWriteAttempts:3,signal:controller.signal});}catch(e){error=e;}
+      assert(error,mode);assert(error.report.cpuKeptHalted,mode);assert.deepEqual(e.fake.eraseOrder,[0x3000],mode);assert.equal(e.fake.resets,0,mode);
+      assert.equal(e.fake.protection,mode==='uid'?0:44,mode);
+      if(mode==='uid')assert.match(error.report.protectionError,/identity changed/);
+    }finally{await e.close();}
+  }
+});
+test('persistent recovery corruption exhausts three attempts and leaves CPU halted with protection restored',async()=>{
+  const e=await setup(460800),execute=e.fake.executeFlash.bind(e.fake);
+  e.fake.executeFlash=command=>{execute(command);if(command[0]===2&&command[2]===0x3f&&command[3]===0xc0)e.fake.memory[0x3809]^=1;};
+  try{
+    let error;try{await R.recoverApplication(e.reader,e.original,e.source,{...e.options,apply:true,nativeStatus:true,sectorWriteAttempts:3});}catch(e){error=e;}
+    assert(error.report.cpuKeptHalted);assert.equal(error.report.sectorWriteAttempts.length,3);
+    assert.deepEqual(e.fake.eraseOrder,[0x3000,0x3000,0x3000]);assert.equal(e.fake.resets,0);assert.equal(e.fake.protection,44);
   }finally{await e.close();}
 });
 test('checks verify the original tag without reset, erases, programs or protection writes',async()=>{

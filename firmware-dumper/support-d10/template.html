@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow"><link rel="icon" href="data:,">
+  <title>Recover your interrupted D10 installation</title>
+  <style>
+    :root{font-family:system-ui,sans-serif;color-scheme:dark;background:#111b20;color:#ecf3f3}
+    *{box-sizing:border-box}body{margin:0;padding:32px 18px}main{max-width:720px;margin:auto}h1{font-size:clamp(28px,5vw,38px);margin:8px 0}h2{font-size:20px;margin:0 0 16px}p,li{line-height:1.6}p{color:#bfcfd2}.intro{max-width:620px}.eyebrow{color:#8ce5cf;font-size:12px;letter-spacing:.12em}
+    section{margin:22px 0;padding:24px;background:#1b292f;border:1px solid #395058;border-radius:14px}label{display:block;line-height:1.6;margin:16px 0}input[type=file],select{max-width:100%;width:100%;padding:12px;border:1px solid #72868d;border-radius:8px;background:#111b20;color:inherit;font:inherit}input[type=checkbox]{accent-color:#8ce5cf;margin-right:8px}button,.download{display:inline-block;font:inherit;border:1px solid #718990;padding:13px 17px;border-radius:8px;background:#2b3f47;color:inherit;text-decoration:none;cursor:pointer}button.primary{background:#8ce5cf;border-color:#8ce5cf;color:#102521;font-weight:650}button:disabled{opacity:.4;cursor:default}.actions{display:flex;flex-wrap:wrap;gap:10px}.notice{border-left:3px solid #e8bd75;padding-left:14px}.hint{font-size:14px}.ready{color:#8ce5cf}.error{color:#ffc29e}[hidden]{display:none!important}progress{width:100%;accent-color:#8ce5cf;margin:14px 0}#status{color:#ecf3f3;font-size:19px;margin-top:0}#log{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:280px;overflow:auto}details{margin-top:22px}summary{cursor:pointer;color:#bfcfd2}.wire{display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;padding:15px;background:#111b20;border-radius:8px;font-size:15px}.wire span{padding:8px 12px;border:1px solid #526970;border-radius:6px}.wire b{color:#ffc29e}.foot{font-size:12px;color:#93a9ae}@media(max-width:480px){body{padding:20px 14px}section{padding:18px}.actions button{width:100%}}
+  </style>
+</head>
+<body><main>
+  <div class="eyebrow">D10 INSTALLATION RECOVERY · NEBULAR 437Q-N</div>
+  <h1>Recover your tag</h1>
+  <p class="intro">Restore the backup saved before your interrupted D10 installation. Keep the tag powered and paused until recovery finishes. Your files stay on this computer.</p>
+  <p id="compatibility" class="notice" hidden></p>
+  <section>
+    <h2>1. Choose your saved files</h2>
+    <p>Choose the <strong>failed installation report</strong> and the complete <strong>backup saved before installation</strong>. The report tells this page which tag and backup to expect. Keep a separate copy of the backup.</p>
+    <label for="failure-report">Failed installation report (.json or .txt)</label><input id="failure-report" type="file" accept=".json,.txt,application/json,text/plain">
+    <p id="failure-report-status" class="hint" aria-live="polite">Use “Save report” on the failed installer, or choose a text file containing its complete JSON report.</p>
+    <label for="backup">Original tag backup (.bin)</label><input id="backup" type="file" accept=".bin">
+    <p id="backup-status" class="hint" aria-live="polite">No backup selected.</p>
+  </section>
+  <section>
+    <h2>2. Connect the programmer</h2>
+    <p class="notice"><strong>If there is a wire between GP2 and the tag’s RST pad, remove it.</strong> Leave the SWS connection, power and ground connected. Keep power on. Do not press reset or BOOTSEL.</p>
+    <div class="wire" aria-label="Disconnect the reset wire from RP2040 GP2 to tag RST"><span>Programmer GP2</span><b>← remove this wire →</b><span>Tag RST</span></div>
+    <p class="hint">Only SWS is used for data. You do not need the tag’s UART TX or RX pads connected. Disconnecting GP2/RST prevents an accidental reset when the browser opens the connection. Your programmer is already v1.6; it does not need a firmware update.</p>
+    <label><input id="reset-disconnected" type="checkbox">GP2 is disconnected from RST, and I left the tag powered.</label>
+    <p>Close other flasher or serial-monitor connections first. Click the two buttons in order. For the second, choose the port labelled <strong>SWS</strong> (the first interface), rather than Tag UART.</p>
+    <div class="actions"><button id="connect-usb" disabled>Connect programmer</button><button id="connect-serial" disabled>Choose SWS port</button><button id="disconnect" disabled>Disconnect</button></div>
+    <p id="connection-status" class="hint" aria-live="polite">Choose your report and backup, then confirm GP2 is disconnected from RST.</p>
+  </section>
+  <section aria-live="polite">
+    <h2>3. Check, then restore</h2>
+    <p>The check reads your tag twice, confirms its identity and checks that its factory data matches your backup. It keeps the tag paused. After it passes, click “Restore saved backup”. The restore repeats these checks before writing.</p>
+    <div class="actions"><button id="check" disabled>Check my tag</button><button id="restore" class="primary" disabled>Restore saved backup</button><button id="cancel" disabled>Stop safely</button></div>
+    <p id="status" style="margin-top:20px">Complete the steps above to begin.</p>
+    <progress id="progress" max="1" value="0" aria-label="Recovery progress"></progress>
+    <p id="detail" class="hint">Leave this page open and the tag powered until recovery finishes. The final restart happens only after the firmware and protection checks pass.</p>
+    <div id="result" hidden><a id="report" class="download">Save report for Gerard</a></div>
+    <details><summary>Activity log</summary><pre id="log" role="log"></pre></details>
+  </section>
+  <p class="foot">Recovery revision 2026-10-20.1 · 460800 baud · 64-byte writes with native status reads · up to 3 checked attempts per sector. Tested with simulated devices; physical recovery remains unverified. Your backup stays on your computer.</p>
+  <script src="support-d10/config.js"></script>
+  <script src="sws.js"></script>
+  <script src="flash.js"></script>
+  <script src="recovery.js"></script>
+  <script src="support-d10/app.js"></script>
+</main></body>
+</html>

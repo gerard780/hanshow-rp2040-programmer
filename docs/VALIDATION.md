@@ -1,5 +1,31 @@
 # Programmer validation
 
+## D10 recovery — page 2026-10-20.1
+
+Recovery simulations reproduce a mixed application after the reported failure:
+`0x3000` already restored, `0x4000` damaged and `0x5000` partially programmed.
+The 460800-baud recovery completes with 64-byte writes even when legacy SPI
+reply sampling is rejected by the model. Additional cases cover a stable
+`0x4809` mismatch and checked retry, completed writes with a lost readback
+accepted without re-erasure, three-attempt exhaustion, changed UID/protection,
+unstable retry reads, new fault counters and cancellation. Errors prevent reset;
+changed UID also blocks protection writes to the changed target. Existing
+921600-baud and combined restore/install tests remain passing.
+
+Chromium exercises the actual standalone recovery page with locally selected synthetic reports
+and flash data: wrong-backup rejection before USB access, two-pass checks
+without flash/protection mutations, recovery of the mixed image, a checked
+rewrite, complete image/protection verification and a single final reset. Wrong
+tag, changed factory data, persistent corruption, new transport faults and
+failed protection all stop without reset. A nonzero initial fault count is
+accepted only as the new session baseline; new faults still stop writes.
+Reports include page revision, attempt history and initial/final counters.
+Mobile layout and no companion network resources are checked. The existing
+personal recovery and normal D10 browser flows are regression-tested separately.
+
+These models test control flow and protocol handling, not physical timing,
+wiring or successful physical recovery. No radio bench or tag was accessed.
+
 ## Paced activation — page 2026-10-19.1
 
 An asynchronous echo model accepts host writes immediately and transmits their

@@ -1,3 +1,29 @@
+# Interrupted D10 recovery — page 2026-10-20.1
+
+A field report reached two matching full backups and saved-backup verification,
+then failed during sector `0x5000` programming. Its retry stopped on changed
+RP2040 transport-fault counters. Rollback restored `0x3000` but failed readback
+at `0x4809` within `0x4000`, before reaching `0x5000`. Original protection was
+restored and the CPU was left halted. The report establishes neither a working
+D10 image nor a verified rollback, and does not establish the physical cause.
+
+A separate recovery-only support page reads the failed-install report locally
+and uses it to match the saved backup and tag identity. It uses 460800 baud, conservative 64-byte programs and native
+status reads instead of the byte-sampled status path involved in the timeout.
+The native path is a software mitigation, not a confirmed hardware diagnosis.
+Up to three recovery attempts per sector require identity/protection/halt checks,
+matching sector reads and unchanged session fault counters. Full-flash equality
+and original protection are required before restart. Failures retain the halted
+CPU. The public page embeds no incident-specific backup or identity hash; no tag dump,
+raw identifier or full report is published.
+
+The existing support page keeps its earlier binding, 921600 baud and default
+single-attempt/legacy-status behavior. The normal D10 installer's rate, firmware
+and retry settings are unchanged. Shared recovery now also checks transport
+before sectors and restart, and target identity before failed-restore protection
+cleanup. Programmer v1.6 remains sufficient. Simulated tests pass; no physical
+recovery was attempted.
+
 # Paced SWS activation — page 2026-10-19.1
 
 At 460800 baud, an unacknowledged halt burst can still be queued after Web

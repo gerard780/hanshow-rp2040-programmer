@@ -43,6 +43,11 @@ The builder verifies the UF2 against its manifest and generates both:
 - Full tools: `firmware-dumper/index.html` and `docs/tools/index.html`.
 - Dumper-only: `firmware-dumper/read-only.html` and `docs/index.html`.
 
+The builder also produces the D10 installer, its controller, the earlier
+personal recovery page, and the restore-only D10 incident page from
+`support-d10/`. See [recovery instructions](../docs/RECOVERY.md) for the exact
+incident binding and verification limits.
+
 Each pair is byte-identical. GitHub Pages uses main's
 `/docs` directory; `.nojekyll` keeps the published HTML as generated.
 

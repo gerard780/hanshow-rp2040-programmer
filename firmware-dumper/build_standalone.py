@@ -15,6 +15,8 @@ BUILDS = (("index.template.html", ("sws.js", "flash.js", "discovery.js", "discov
            (HERE / "read-only.html", ROOT / "docs/index.html")),
           ("support/template.html", ("support/config.js", "support/firmware.js", "sws.js", "flash.js", "recovery.js", "support/app.js"),
            (ROOT / "docs/support/recovery-437-6f3d8a/index.html",)),
+          ("support-d10/template.html", ("support-d10/config.js", "sws.js", "flash.js", "recovery.js", "support-d10/app.js"),
+           (ROOT / "docs/support/recovery-437-d10-20261020/index.html",)),
           ("d10/template.html", ("sws.js", "flash.js", "d10/firmware.js", "d10/target.js", "d10/app.js"),
            (ROOT / "docs/d10/index.html",)))
 
